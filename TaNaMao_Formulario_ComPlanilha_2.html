@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tá na Mão Locações — Orçamento</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f5f5f5; color: #222; min-height: 100vh; }
+
+.header {
+  background: #E8671A; color: #fff; padding: 18px 20px 14px;
+  text-align: center; position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+.header h1 { font-size: 1.3rem; font-weight: 700; }
+.header p  { font-size: .8rem; opacity: .88; margin-top: 2px; }
+
+/* Loading overlay */
+#loading-overlay {
+  position: fixed; inset: 0; background: rgba(255,255,255,.95);
+  z-index: 999; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px;
+}
+.spinner {
+  width: 44px; height: 44px; border: 4px solid #f3f3f3;
+  border-top: 4px solid #E8671A; border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading-overlay p { color: #666; font-size: .9rem; }
+#loading-overlay.hidden { display: none; }
+
+.layout { display: flex; gap: 0; max-width: 980px; margin: 0 auto; align-items: flex-start; }
+.form-col { flex: 1 1 0; padding: 18px 16px; min-width: 0; }
+.cart-col { width: 290px; flex-shrink: 0; padding: 18px 14px; position: sticky; top: 76px; }
+
+.section { background: #fff; border-radius: 10px; margin-bottom: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+.section-title { background: #3A3A3A; color: #fff; font-size: .78rem; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; padding: 9px 14px; }
+.section-body { padding: 14px; }
+
+label.fl { display: block; font-size: .78rem; font-weight: 700; color: #555; margin-bottom: 4px; margin-top: 10px; }
+label.fl:first-child { margin-top: 0; }
+input[type=text], input[type=tel], input[type=email], input[type=date],
+input[type=time], input[type=number], select, textarea {
+  width: 100%; border: 1.5px solid #ddd; border-radius: 7px;
+  padding: 9px 11px; font-size: .9rem; background: #fafafa; transition: border-color .15s;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: #E8671A; background: #fff; }
+textarea { resize: vertical; min-height: 60px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Aviso de erro de carregamento */
+.erro-carga {
+  background: #fff3e0; border: 1.5px solid #ff9800; border-radius: 8px;
+  padding: 12px 14px; font-size: .82rem; color: #e65100; margin-bottom: 10px;
+  display: none;
+}
+.erro-carga.visivel { display: block; }
+
+/* Item cards */
+.item-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.item-card {
+  border: 1.5px solid #e0e0e0; border-radius: 9px; padding: 11px 10px;
+  cursor: pointer; transition: border-color .15s, background .15s;
+  position: relative; user-select: none;
+}
+.item-card:hover { border-color: #E8671A; background: #fff8f4; }
+.item-card.selected { border-color: #E8671A; background: #fff3ea; }
+.item-card .in { font-size: .82rem; font-weight: 700; color: #333; }
+.item-card .ip { font-size: .78rem; color: #E8671A; margin-top: 3px; }
+.item-card .iu { font-size: .7rem; color: #888; }
+.ck { position: absolute; top: 7px; right: 8px; width: 18px; height: 18px; border-radius: 50%; background: #E8671A; color: #fff; display: none; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; }
+.item-card.selected .ck { display: flex; }
+.qty-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.qty-row .ql { font-size: .7rem; color: #666; flex: 1; }
+.qb { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #E8671A; background: #fff; color: #E8671A; font-size: 1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .1s, color .1s; }
+.qb:hover { background: #E8671A; color: #fff; }
+.qd { font-size: .85rem; font-weight: 700; min-width: 20px; text-align: center; }
+.item-card:not(.selected) .qty-row { display: none; }
+
+/* Categoria vazia */
+.cat-vazia { color: #aaa; font-size: .78rem; padding: 10px 0; text-align: center; }
+
+/* Toggle churrasqueiro */
+.toggle-row { display: flex; align-items: center; gap: 12px; }
+.toggle-label { font-size: .88rem; flex: 1; }
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; inset: 0; background: #ccc; border-radius: 24px; transition: .2s; cursor: pointer; }
+.slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+input:checked + .slider { background: #E8671A; }
+input:checked + .slider:before { transform: translateX(20px); }
+.chur-detail { margin-top: 10px; display: none; }
+.chur-detail.visible { display: block; }
+
+/* Carrinho */
+.cart-box { background: #fff; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,.10); overflow: hidden; }
+.cart-hdr { background: #E8671A; color: #fff; padding: 11px 14px; font-size: .82rem; font-weight: 700; }
+.cart-body { padding: 12px 12px 0; min-height: 60px; }
+.cart-empty { color: #aaa; font-size: .8rem; text-align: center; padding: 20px 0 4px; }
+.cl { display: flex; justify-content: space-between; align-items: flex-start; font-size: .8rem; margin-bottom: 8px; gap: 6px; }
+.cl .cn { flex: 1; color: #333; font-weight: 600; }
+.cl .cd { color: #888; font-size: .7rem; }
+.cl .cv { color: #E8671A; font-weight: 700; white-space: nowrap; }
+.cart-div { border: none; border-top: 1px solid #eee; margin: 10px 12px; }
+.cart-tot { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px 4px; font-weight: 700; }
+.cart-tot-label { font-size: .85rem; color: #555; }
+.cart-tot-val { font-size: 1.25rem; color: #E8671A; }
+.cart-note { font-size: .7rem; color: #aaa; padding: 0 12px 10px; }
+#cart-desc-row { padding: 0 12px 8px; display: none; }
+
+/* Desconto */
+.disc-row { display: flex; gap: 8px; align-items: flex-end; }
+.disc-row input { flex: 1; }
+#msg-desc { margin-top: 6px; font-size: .78rem; display: none; }
+
+/* Botão principal */
+.btn-main { width: 100%; padding: 14px; background: #E8671A; color: #fff; border: none; border-radius: 9px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 12px; letter-spacing: .3px; transition: background .15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-main:hover { background: #c85510; }
+.btn-main:disabled { background: #ccc; cursor: not-allowed; }
+
+/* Badge de sincronização */
+.sync-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: .68rem; color: #2e7d32; background: #e8f5e9;
+  padding: 3px 9px; border-radius: 20px; margin-bottom: 10px;
+}
+.sync-badge.erro { color: #b71c1c; background: #ffebee; }
+.sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #2e7d32; }
+.sync-badge.erro .sync-dot { background: #b71c1c; }
+
+/* Modal */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 999; align-items: center; justify-content: center; padding: 20px; }
+.modal-bg.open { display: flex; }
+.modal { background: #fff; border-radius: 14px; padding: 28px 24px; max-width: 440px; width: 100%; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,.18); }
+.modal .icon { font-size: 3rem; margin-bottom: 10px; }
+.modal h2 { font-size: 1.2rem; color: #333; margin-bottom: 8px; }
+.modal p { font-size: .88rem; color: #666; margin-bottom: 18px; line-height: 1.5; }
+.btn-wpp { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px; background: #25d366; color: #fff; border: none; border-radius: 9px; font-size: .95rem; font-weight: 700; cursor: pointer; text-decoration: none; margin-bottom: 10px; }
+.btn-sec { width: 100%; padding: 11px; background: #f5f5f5; color: #555; border: none; border-radius: 9px; font-size: .88rem; cursor: pointer; margin-top: 6px; }
+
+.req { color: #E8671A; }
+
+@media (max-width: 680px) {
+  .layout { flex-direction: column; }
+  .cart-col { width: 100%; position: static; padding: 0 16px 16px; }
+  .item-grid { grid-template-columns: 1fr 1fr; }
+  .row2 { grid-template-columns: 1fr; }
+}
+@media print {
+  .no-print { display: none !important; }
+  .header { position: static; }
+  body { background: #fff; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p>Carregando itens da planilha...</p>
+</div>
+
+<div class="header no-print">
+  <h1>🎵 Tá na Mão Locações</h1>
+  <p>Selecione os itens e veja o valor em tempo real</p>
+</div>
+
+<div class="layout">
+<div class="form-col">
+
+  <!-- Badge sync -->
+  <div id="sync-badge" class="sync-badge no-print" style="display:none;">
+    <div class="sync-dot"></div>
+    <span id="sync-txt">Itens carregados da planilha</span>
+  </div>
+
+  <!-- Erro carga -->
+  <div id="erro-carga" class="erro-carga">
+    ⚠️ Não foi possível carregar os itens da planilha. Verifique a URL do Apps Script.
+    <br><small id="erro-detalhe"></small>
+  </div>
+
+  <!-- DADOS DO CLIENTE -->
+  <div class="section">
+    <div class="section-title">👤 Seus Dados</div>
+    <div class="section-body">
+      <label class="fl">Nome completo <span class="req">*</span></label>
+      <input type="text" id="nome" placeholder="Seu nome completo">
+      <div class="row2">
+        <div>
+          <label class="fl">Telefone / WhatsApp <span class="req">*</span></label>
+          <input type="tel" id="telefone" placeholder="(00) 00000-0000">
+        </div>
+        <div>
+          <label class="fl">E-mail</label>
+          <input type="email" id="email" placeholder="seu@email.com">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DADOS DO EVENTO -->
+  <div class="section">
+    <div class="section-title">📅 Dados do Evento</div>
+    <div class="section-body">
+      <div class="row2">
+        <div>
+          <label class="fl">Data do evento <span class="req">*</span></label>
+          <input type="date" id="data-evento">
+        </div>
+        <div>
+          <label class="fl">Tipo de evento</label>
+          <select id="tipo-evento">
+            <option value="">Selecione...</option>
+            <option>Casamento</option><option>Aniversário</option>
+            <option>Churrasco</option><option>Formatura</option>
+            <option>Corporativo</option><option>Show / Forró</option>
+            <option>Festa Infantil</option><option>Outro</option>
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label class="fl">Horário início</label>
+          <input type="time" id="hora-inicio">
+        </div>
+        <div>
+          <label class="fl">Horário fim</label>
+          <input type="time" id="hora-fim">
+        </div>
+      </div>
+      <label class="fl">Local / Endereço do evento <span class="req">*</span></label>
+      <input type="text" id="local" placeholder="Rua, número, bairro">
+      <div class="row2">
+        <div>
+          <label class="fl">Cidade</label>
+          <input type="text" id="cidade" placeholder="Sua cidade">
+        </div>
+        <div>
+          <label class="fl">Nº estimado de pessoas</label>
+          <input type="number" id="pessoas" placeholder="ex: 80" min="1">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITENS DINÂMICOS — criados pelo JS conforme planilha -->
+  <div id="secoes-itens"></div>
+
+  <!-- CHURRASQUEIRO -->
+  <div class="section">
+    <div class="section-title">🔥 Serviço de Churrasqueiro</div>
+    <div class="section-body">
+      <div class="toggle-row">
+        <span class="toggle-label">Deseja contratar churrasqueiro?</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-chur" onchange="toggleChur()">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="chur-detail" id="chur-detail">
+        <div class="row2" style="margin-top:10px">
+          <div>
+            <label class="fl">Quantidade</label>
+            <select id="qtd-chur" onchange="atualizar()">
+              <option value="1">1 churrasqueiro</option>
+              <option value="2">2 churrasqueiros</option>
+              <option value="3">3 churrasqueiros</option>
+            </select>
+          </div>
+          <div>
+            <label class="fl">Duração estimada</label>
+            <select id="dur-chur">
+              <option value="4">Até 4 horas</option>
+              <option value="6" selected>Até 6 horas</option>
+              <option value="8">Até 8 horas</option>
+              <option value="10">Diária (10h+)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DESCONTO & OBS -->
+  <div class="section">
+    <div class="section-title">💬 Observações & Desconto</div>
+    <div class="section-body">
+      <label class="fl">Código de desconto</label>
+      <div class="disc-row">
+        <input type="text" id="cod-desc" placeholder="Ex: AMIGO10" oninput="calcDesc()">
+      </div>
+      <div id="msg-desc"></div>
+      <label class="fl" style="margin-top:12px">Forma de pagamento preferida</label>
+      <select id="forma-pgto">
+        <option value="A Combinar">A Combinar</option>
+        <option value="Pix">Pix</option>
+        <option value="Dinheiro">Dinheiro</option>
+        <option value="Cartão Crédito">Cartão de Crédito</option>
+        <option value="Cartão Débito">Cartão de Débito</option>
+        <option value="Transferência">Transferência Bancária</option>
+      </select>
+      <label class="fl" style="margin-top:12px">Observações</label>
+      <textarea id="obs" placeholder="Dúvidas, pedidos especiais, restrições de acesso..."></textarea>
+      <label class="fl">Como nos conheceu?</label>
+      <select id="como-conheceu">
+        <option value="">Selecione...</option>
+        <option>Instagram</option><option>Facebook</option>
+        <option>Indicação</option><option>Google</option>
+        <option>WhatsApp</option><option>Já sou cliente</option><option>Outro</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-main no-print" id="btn-enviar" onclick="enviar()">
+    📄 Gerar Orçamento & Enviar
+  </button>
+  <p style="font-size:.72rem; color:#aaa; text-align:center; margin-top:8px; margin-bottom:20px;">
+    Após enviar, você receberá o resumo pelo WhatsApp e um PDF do orçamento.
+  </p>
+
+</div><!-- /form-col -->
+
+<!-- CARRINHO -->
+<div class="cart-col no-print">
+  <div class="cart-box">
+    <div class="cart-hdr">🛒 &nbsp;Seu Orçamento</div>
+    <div class="cart-body" id="cart-body">
+      <p class="cart-empty">Selecione os itens ao lado</p>
+    </div>
+    <hr class="cart-div">
+    <div class="cart-tot">
+      <span class="cart-tot-label">Total estimado</span>
+      <span class="cart-tot-val" id="cart-total">R$ 0,00</span>
+    </div>
+    <div id="cart-desc-row">
+      <div style="display:flex;justify-content:space-between;font-size:.78rem;color:#2e7d32;font-weight:700;">
+        <span>Desconto</span><span id="desc-val-cart"></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.88rem;margin-top:4px;font-weight:700;">
+        <span>Total final</span><span style="color:#E8671A;" id="total-final-cart"></span>
+      </div>
+    </div>
+    <p class="cart-note">* Transporte calculado separadamente</p>
+  </div>
+</div>
+
+</div><!-- /layout -->
+
+<!-- MODAL SUCESSO -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="icon">✅</div>
+    <h2>Orçamento enviado!</h2>
+    <p id="modal-txt"></p>
+    <a class="btn-wpp" id="btn-wpp" href="#" target="_blank">📱 Enviar pelo WhatsApp</a>
+    <button class="btn-sec" onclick="gerarPDF()">🖨️ Baixar PDF</button>
+    <button class="btn-sec" onclick="fecharModal()">🔄 Novo orçamento</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+//  ⚠️  CONFIGURAÇÕES — edite apenas este bloco
+// ══════════════════════════════════════════════════════════════════
+const CONFIG = {
+  // Cole aqui a URL gerada ao publicar o Apps Script
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyo6uEeqklvrnwoSowHgn5fDnMXOYSXWbqHM3t8mH0lvx0-OgDMUHEqtNitB504jtkk/exec",
+
+  // Seu número com DDI+DDD, ex: "5511999990000"
+  WHATSAPP: "5500000000000",
+
+  // Preço padrão do churrasqueiro (backup caso não venha da planilha)
+  PRECO_CHUR: 150,
+
+  // Códigos de desconto válidos: código → porcentagem
+  DESCONTOS: {
+    "AMIGO10":       10,
+    "FIDELIDADE15":  15,
+    "PROMO20":       20,
+  },
+};
+// ══════════════════════════════════════════════════════════════════
+
+let ITENS_CATALOGO = [];  // preenchido via fetch
+let selecionados   = {};  // { id: { item, qty } }
+let pctDesc        = 0;
+
+// ── CARREGAR ITENS DA PLANILHA ──────────────────────────────────
+function carregarCatalogo() {
+  if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbyo6uEeqklvrnwoSowHgn5fDnMXOYSXWbqHM3t8mH0lvx0-OgDMUHEqtNitB504jtkk/exec") {
+    usarCatalogoFallback();
+    renderizarCatalogo();
+    document.getElementById("loading-overlay").classList.add("hidden");
+    return;
+  }
+
+  // JSONP — único método que funciona cross-origin com Apps Script
+  window._jsonpCallback = function(data) {
+    try {
+      if (data.ok && data.itens.length > 0) {
+        ITENS_CATALOGO = data.itens;
+        mostrarBadge(true, `${data.itens.length} itens carregados da planilha`);
+      } else {
+        throw new Error(data.erro || "Resposta vazia");
+      }
+    } catch(e) {
+      document.getElementById("erro-detalhe").textContent = e.message;
+      document.getElementById("erro-carga").classList.add("visivel");
+      mostrarBadge(false, "Erro ao carregar planilha — usando catálogo padrão");
+      usarCatalogoFallback();
+    } finally {
+      renderizarCatalogo();
+      document.getElementById("loading-overlay").classList.add("hidden");
+    }
+  };
+
+  // Timeout caso o script não responda
+  const timeout = setTimeout(() => {
+    document.getElementById("erro-detalhe").textContent = "Tempo esgotado";
+    document.getElementById("erro-carga").classList.add("visivel");
+    mostrarBadge(false, "Erro ao carregar planilha — usando catálogo padrão");
+    usarCatalogoFallback();
+    renderizarCatalogo();
+    document.getElementById("loading-overlay").classList.add("hidden");
+  }, 8000);
+
+  const script = document.createElement("script");
+  script.src = CONFIG.APPS_SCRIPT_URL + "?callback=_jsonpCallback";
+  script.onload = () => clearTimeout(timeout);
+  script.onerror = () => {
+    clearTimeout(timeout);
+    usarCatalogoFallback();
+    renderizarCatalogo();
+    document.getElementById("loading-overlay").classList.add("hidden");
+  };
+  document.head.appendChild(script);
+}
+
+function usarCatalogoFallback() {
+  ITENS_CATALOGO = [
+    {id:"s1",nome:'Caixa Ativa 15"',   cat:"Som",         unidade:"por cx/dia",   preco:80},
+    {id:"s2",nome:"Kit Som Completo",   cat:"Som",         unidade:"kit/dia",      preco:280},
+    {id:"s3",nome:"Mesa de Som 12 Ch.", cat:"Som",         unidade:"por dia",      preco:60},
+    {id:"s4",nome:"Microfone c/ Fio",  cat:"Som",         unidade:"por unid/dia", preco:20},
+    {id:"s5",nome:"Microfone Sem Fio", cat:"Som",         unidade:"por unid/dia", preco:30},
+    {id:"i1",nome:"Kit LED (6 ref.)",  cat:"Iluminação",  unidade:"kit/dia",      preco:120},
+    {id:"i2",nome:"Moving Head Beam",  cat:"Iluminação",  unidade:"por unid/dia", preco:80},
+    {id:"i3",nome:"Strobo LED",        cat:"Iluminação",  unidade:"por unid/dia", preco:30},
+    {id:"i4",nome:"Máq. de Fumaça",   cat:"Iluminação",  unidade:"por dia",      preco:50},
+    {id:"m1",nome:"Mesa Plást. 1,80m", cat:"Mesas",       unidade:"por unid/dia", preco:15},
+    {id:"m2",nome:"Mesa Redonda",      cat:"Mesas",       unidade:"por unid/dia", preco:12},
+    {id:"m3",nome:"Cadeira Plástica",  cat:"Cadeiras",    unidade:"por unid/dia", preco:3},
+    {id:"m4",nome:"Cadeira c/ Braço",  cat:"Cadeiras",    unidade:"por unid/dia", preco:5},
+    {id:"m5",nome:"Toalha de Mesa",    cat:"Mesas",       unidade:"por unid/dia", preco:8},
+    {id:"f1",nome:"Gerador 5kVA",      cat:"Ferramentas", unidade:"por dia",      preco:200},
+    {id:"f2",nome:"Tenda 3×3",         cat:"Ferramentas", unidade:"por unid/dia", preco:120},
+    {id:"f3",nome:"Extensão 20m",      cat:"Ferramentas", unidade:"por unid/dia", preco:15},
+  ];
+}
+
+// ── RENDERIZAR CATEGORIAS DINAMICAMENTE ────────────────────────
+const ICONES = {
+  "Som":"🔊", "Áudio":"🔊", "Iluminação":"💡", "Mesas":"🪑",
+  "Cadeiras":"🪑", "Ferramentas":"🔧", "Estrutura":"🔧",
+  "Decoração":"🎀", "Outros":"📦",
+};
+
+function renderizarCatalogo() {
+  const container = document.getElementById("secoes-itens");
+  container.innerHTML = "";
+
+  // Agrupa por categoria
+  const cats = {};
+  ITENS_CATALOGO.forEach(it => {
+    if (!cats[it.cat]) cats[it.cat] = [];
+    cats[it.cat].push(it);
+  });
+
+  Object.entries(cats).forEach(([cat, itens]) => {
+    const icone = ICONES[cat] || "📦";
+    const sec = document.createElement("div");
+    sec.className = "section";
+    sec.innerHTML = `
+      <div class="section-title">${icone} ${cat}</div>
+      <div class="section-body">
+        <div class="item-grid" id="grid-${slugify(cat)}"></div>
+      </div>`;
+    container.appendChild(sec);
+    const grid = sec.querySelector(".item-grid");
+    itens.forEach(it => criarCard(it, grid));
+  });
+}
+
+function slugify(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "_");
+}
+
+function criarCard(item, grid) {
+  const div = document.createElement("div");
+  div.className = "item-card";
+  div.id = "card-" + item.id;
+  div.innerHTML = `
+    <span class="ck">✓</span>
+    <div class="in">${item.nome}</div>
+    <div class="ip">R$ ${fmtPreco(item.preco)} <span class="iu">${item.unidade || ""}</span></div>
+    <div class="qty-row">
+      <span class="ql">Qtd:</span>
+      <button class="qb" onclick="chQty('${item.id}',-1,event)">−</button>
+      <span class="qd" id="qty-${item.id}">1</span>
+      <button class="qb" onclick="chQty('${item.id}',1,event)">+</button>
+    </div>`;
+  div.addEventListener("click", e => {
+    if (e.target.classList.contains("qb")) return;
+    toggleItem(item);
+  });
+  grid.appendChild(div);
+}
+
+// ── LÓGICA DO CARRINHO ──────────────────────────────────────────
+function toggleItem(item) {
+  const card = document.getElementById("card-" + item.id);
+  if (selecionados[item.id]) {
+    delete selecionados[item.id];
+    card.classList.remove("selected");
+  } else {
+    selecionados[item.id] = { item, qty: 1 };
+    card.classList.add("selected");
+  }
+  atualizar();
+}
+
+function chQty(id, delta, e) {
+  e.stopPropagation();
+  if (!selecionados[id]) return;
+  selecionados[id].qty = Math.max(1, selecionados[id].qty + delta);
+  document.getElementById("qty-" + id).textContent = selecionados[id].qty;
+  atualizar();
+}
+
+function atualizar() {
+  let total = 0;
+  let html  = "";
+  const keys = Object.keys(selecionados);
+  const chur = document.getElementById("toggle-chur").checked;
+  const qtdC = parseInt(document.getElementById("qtd-chur").value || 1);
+
+  if (!keys.length && !chur) {
+    html = '<p class="cart-empty">Selecione os itens ao lado</p>';
+  } else {
+    keys.forEach(id => {
+      const { item, qty } = selecionados[id];
+      const sub = item.preco * qty;
+      total += sub;
+      html += `<div class="cl">
+        <div><div class="cn">${item.nome}</div>
+        <div class="cd">R$ ${fmtPreco(item.preco)} × ${qty}</div></div>
+        <div class="cv">R$ ${fmtPreco(sub)}</div></div>`;
+    });
+    if (chur) {
+      const subC = CONFIG.PRECO_CHUR * qtdC;
+      total += subC;
+      html += `<div class="cl">
+        <div><div class="cn">🔥 Churrasqueiro</div>
+        <div class="cd">R$ ${fmtPreco(CONFIG.PRECO_CHUR)} × ${qtdC}</div></div>
+        <div class="cv">R$ ${fmtPreco(subC)}</div></div>`;
+    }
+  }
+
+  document.getElementById("cart-body").innerHTML = html;
+  document.getElementById("cart-total").textContent = "R$ " + fmtPreco(total);
+
+  const rowDesc = document.getElementById("cart-desc-row");
+  if (pctDesc > 0 && total > 0) {
+    const dv = total * pctDesc / 100;
+    rowDesc.style.display = "block";
+    document.getElementById("desc-val-cart").textContent = `− R$ ${fmtPreco(dv)} (${pctDesc}%)`;
+    document.getElementById("total-final-cart").textContent = `R$ ${fmtPreco(total - dv)}`;
+  } else {
+    rowDesc.style.display = "none";
+  }
+}
+
+function toggleChur() {
+  document.getElementById("chur-detail").classList.toggle(
+    "visible", document.getElementById("toggle-chur").checked);
+  atualizar();
+}
+
+// ── DESCONTO ───────────────────────────────────────────────────
+function calcDesc() {
+  const cod = document.getElementById("cod-desc").value.trim().toUpperCase();
+  const el  = document.getElementById("msg-desc");
+  if (CONFIG.DESCONTOS[cod]) {
+    pctDesc = CONFIG.DESCONTOS[cod];
+    el.style.display = "block";
+    el.style.color   = "#2e7d32";
+    el.textContent   = `✅ Desconto de ${pctDesc}% aplicado!`;
+  } else if (cod.length > 3) {
+    pctDesc = 0;
+    el.style.display = "block";
+    el.style.color   = "#c62828";
+    el.textContent   = "❌ Código inválido.";
+  } else {
+    pctDesc = 0;
+    el.style.display = "none";
+  }
+  atualizar();
+}
+
+// ── ENVIAR ─────────────────────────────────────────────────────
+async function enviar() {
+  const nome  = document.getElementById("nome").value.trim();
+  const tel   = document.getElementById("telefone").value.trim();
+  const data  = document.getElementById("data-evento").value;
+  const local = document.getElementById("local").value.trim();
+
+  if (!nome || !tel || !data || !local) {
+    alert("Preencha: Nome, Telefone, Data do evento e Local."); return;
+  }
+  if (!Object.keys(selecionados).length && !document.getElementById("toggle-chur").checked) {
+    alert("Selecione pelo menos um item."); return;
+  }
+
+  const btn = document.getElementById("btn-enviar");
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+
+  let rawTotal = 0;
+  Object.values(selecionados).forEach(({item,qty}) => rawTotal += item.preco * qty);
+  const chur = document.getElementById("toggle-chur").checked;
+  const qtdC = parseInt(document.getElementById("qtd-chur").value || 1);
+  if (chur) rawTotal += CONFIG.PRECO_CHUR * qtdC;
+
+  const descVal  = rawTotal * pctDesc / 100;
+  const total    = rawTotal - descVal;
+  const [a,m,d]  = data.split("-");
+  const dataFmt  = `${d}/${m}/${a}`;
+
+  const itensArr = Object.values(selecionados).map(({item,qty}) => ({
+    nome: item.nome, preco: item.preco, qty, subtotal: item.preco * qty,
+  }));
+
+  // Payload para o Apps Script
+  const payload = {
+    cliente: nome, telefone: tel,
+    email:   document.getElementById("email").value,
+    dataEvento: data,
+    horaInicio: document.getElementById("hora-inicio").value,
+    horaFim:    document.getElementById("hora-fim").value,
+    local,
+    cidade:  document.getElementById("cidade").value,
+    pessoas: document.getElementById("pessoas").value,
+    itens:   itensArr,
+    churrasqueiro: chur,
+    desconto: descVal,
+    total,
+    formaPgto: document.getElementById("forma-pgto").value,
+    obs:     document.getElementById("obs").value,
+    comoConheceu: document.getElementById("como-conheceu").value,
+  };
+
+  // Tenta salvar na planilha
+  let salvouOk = false;
+  if (CONFIG.APPS_SCRIPT_URL && CONFIG.APPS_SCRIPT_URL !== "https://script.google.com/macros/s/AKfycbyo6uEeqklvrnwoSowHgn5fDnMXOYSXWbqHM3t8mH0lvx0-OgDMUHEqtNitB504jtkk/exec") {
+    try {
+      const resp = await fetch(CONFIG.APPS_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      const result = await resp.json();
+      salvouOk = result.ok;
+    } catch (_) { /* falha silenciosa, prossegue com WhatsApp */ }
+  }
+
+  // Monta mensagem WhatsApp
+  let msg = `🎵 *TÁ NA MÃO LOCAÇÕES*\n━━━━━━━━━━━━━━━━━━\n📋 *ORÇAMENTO*\n\n`;
+  msg += `👤 *Cliente:* ${nome}\n📞 *Fone:* ${tel}\n📅 *Data:* ${dataFmt}\n📍 *Local:* ${local}`;
+  if (document.getElementById("cidade").value) msg += ` — ${document.getElementById("cidade").value}`;
+  msg += `\n\n🛒 *Itens:*\n`;
+  itensArr.forEach(it => msg += `• ${it.nome} (x${it.qty}) — R$ ${fmtPreco(it.subtotal)}\n`);
+  if (chur) msg += `• Churrasqueiro (x${qtdC}) — R$ ${fmtPreco(CONFIG.PRECO_CHUR * qtdC)}\n`;
+  msg += `\n💰 *Subtotal:* R$ ${fmtPreco(rawTotal)}\n`;
+  if (pctDesc > 0) {
+    msg += `🏷️ *Desconto (${pctDesc}%):* − R$ ${fmtPreco(descVal)}\n`;
+    msg += `✅ *TOTAL FINAL: R$ ${fmtPreco(total)}*\n`;
+  } else {
+    msg += `✅ *TOTAL: R$ ${fmtPreco(total)}*\n`;
+  }
+  if (document.getElementById("obs").value) msg += `\n💬 *Obs:* ${document.getElementById("obs").value}`;
+  msg += `\n\n_Sujeito a confirmação de disponibilidade._`;
+  if (!salvouOk) msg += `\n_(Pedido pendente de confirmação na planilha)_`;
+
+  document.getElementById("btn-wpp").href =
+    `https://wa.me/${CONFIG.WHATSAPP}?text=${encodeURIComponent(msg)}`;
+  document.getElementById("modal-txt").textContent =
+    `Olá ${nome}! Orçamento de R$ ${fmtPreco(total)} pronto.` +
+    (salvouOk ? " Pedido salvo na planilha automaticamente." : "");
+  document.getElementById("modal").classList.add("open");
+
+  btn.disabled = false;
+  btn.textContent = "📄 Gerar Orçamento & Enviar";
+}
+
+function gerarPDF() {
+  document.getElementById("modal").classList.remove("open");
+  setTimeout(() => window.print(), 200);
+}
+
+function fecharModal() {
+  document.getElementById("modal").classList.remove("open");
+  selecionados = {}; pctDesc = 0;
+  document.querySelectorAll(".item-card.selected").forEach(c => c.classList.remove("selected"));
+  document.querySelectorAll(".qd").forEach(el => el.textContent = "1");
+  document.getElementById("toggle-chur").checked = false;
+  document.getElementById("chur-detail").classList.remove("visible");
+  ["nome","telefone","email","local","cidade","pessoas","cod-desc","obs"]
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value=""; });
+  document.getElementById("data-evento").value = "";
+  document.getElementById("msg-desc").style.display = "none";
+  document.getElementById("como-conheceu").value = "";
+  document.getElementById("tipo-evento").value = "";
+  atualizar();
+  window.scrollTo(0,0);
+}
+
+// ── UTILS ───────────────────────────────────────────────────────
+function fmtPreco(v) {
+  return Number(v).toFixed(2).replace(".", ",");
+}
+
+function mostrarBadge(ok, txt) {
+  const badge = document.getElementById("sync-badge");
+  badge.style.display = "inline-flex";
+  badge.className = "sync-badge no-print" + (ok ? "" : " erro");
+  document.getElementById("sync-txt").textContent = txt;
+}
+
+// ── INICIALIZAR ─────────────────────────────────────────────────
+carregarCatalogo();
+</script>
+</body>
+</html>
