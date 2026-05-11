@@ -282,8 +282,8 @@ input:checked+.slider:before{transform:translateX(20px)}
 <script>
 // ══════════════ CONFIGURAÇÕES ══════════════
 const CFG = {
-  URL: "COLE_AQUI_A_URL_DO_APPS_SCRIPT",
-  WPP: "5500000000000",
+  URL: "https://script.google.com/macros/s/AKfycbyrUV8K9Bu9rw-SU9mWpM6vbpUbLmF-uK-1AXHABc1ZT0lca0hOu4MNaYfXN8xAC7k/exec",
+  WPP: "61996196902",
   PRECO_CHUR: 150,
   DESCONTOS: { "AMIGO10":10, "FIDELIDADE15":15, "PROMO20":20 },
 };
@@ -295,13 +295,14 @@ let pct = 0;
 
 // ── CARREGAR DA PLANILHA (JSONP) ────────────────────────────
 function carregar() {
-  if (!CFG.URL || CFG.URL === "COLE_AQUI_A_URL_DO_APPS_SCRIPT") {
+  if (!CFG.URL) { {
     fallback(); render(); hide();
     badge(false, "URL não configurada — usando catálogo padrão"); return;
   }
-  const t = setTimeout(() => { fallback(); render(); hide(); badge(false,"Tempo esgotado"); }, 8000);
-  window._cbCatalogo = d => {
-    clearTimeout(t);
+  const cb = "_cb_" + Date.now();
+  const t = setTimeout(() => { delete window[cb]; fallback(); render(); hide(); badge(false,"Tempo esgotado"); }, 8000);
+  window[cb] = d => {
+    clearTimeout(t); delete window[cb];
     if (d.ok && d.itens && d.itens.length) {
       CATALOGO = d.itens;
       badge(true, d.itens.length + " itens carregados da planilha");
@@ -309,8 +310,8 @@ function carregar() {
     render(); hide();
   };
   const s = document.createElement("script");
-  s.src = CFG.URL + "?callback=_cbCatalogo";
-  s.onerror = () => { clearTimeout(t); fallback(); render(); hide(); badge(false,"Erro de conexão"); };
+  s.src = CFG.URL + "?callback=" + cb;
+  s.onerror = () => { clearTimeout(t); delete window[cb]; fallback(); render(); hide(); badge(false,"Erro de conexão"); };
   document.head.appendChild(s);
 }
 
@@ -447,8 +448,9 @@ function enviar() {
   const itensStr=itensArr.map(i=>i.nome+" x"+i.qty).join(", ")+(chur?", Churrasqueiro x"+qtdC:"");
 
   // Salvar na planilha
-  if(CFG.URL && CFG.URL!=="COLE_AQUI_A_URL_DO_APPS_SCRIPT"){
-    window._cbSalvar=r=>{};
+  if(CFG.URL){
+    const cb="_sv_"+Date.now();
+    window[cb]=r=>{delete window[cb];};
     const dados={
       cliente:nome,tel,email:document.getElementById("email").value,
       data,hi:document.getElementById("hi").value,hf:document.getElementById("hf").value,
@@ -458,7 +460,7 @@ function enviar() {
       pgto:document.getElementById("pgto").value,obs:document.getElementById("obs").value
     };
     const s=document.createElement("script");
-    s.src=CFG.URL+"?action=salvar&callback=_cbSalvar&dados="+encodeURIComponent(JSON.stringify(dados));
+    s.src=CFG.URL+"?action=salvar&callback="+cb+"&dados="+encodeURIComponent(JSON.stringify(dados));
     document.head.appendChild(s);
   }
 
@@ -496,7 +498,7 @@ function fechar(){
 
 function fmt(v){return Number(v).toFixed(2).replace(".",",");}
 
-carregar();
+carregar();}
 </script>
 </body>
 </html>
