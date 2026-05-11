@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tá na Mão Locações — Orçamento</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#1a1a1a;color:#222;min-height:100vh}
+
+.header{background:#111;color:#FFD600;padding:16px 20px;text-align:center;position:sticky;top:0;z-index:100;border-bottom:3px solid #FFD600}
+.header h1{font-size:1.3rem;font-weight:700;letter-spacing:1px}
+.header p{font-size:.78rem;opacity:.8;margin-top:3px;color:#fff}
+
+#loading-overlay{position:fixed;inset:0;background:rgba(17,17,17,.96);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+#loading-overlay.hidden{display:none}
+.spinner{width:44px;height:44px;border:4px solid #333;border-top:4px solid #FFD600;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-overlay p{color:#aaa;font-size:.9rem}
+
+.layout{display:flex;max-width:1000px;margin:0 auto;align-items:flex-start}
+.form-col{flex:1 1 0;padding:16px;min-width:0}
+.cart-col{width:280px;flex-shrink:0;padding:16px;position:sticky;top:68px}
+
+.section{background:#fff;border-radius:10px;margin-bottom:12px;overflow:hidden;border:2px solid #e0e0e0}
+.section-title{background:#111;color:#FFD600;font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:9px 14px;display:flex;align-items:center;gap:8px}
+.section-body{padding:14px}
+
+label.fl{display:block;font-size:.72rem;font-weight:700;color:#555;margin-bottom:4px;margin-top:10px}
+label.fl:first-child{margin-top:0}
+input[type=text],input[type=tel],input[type=email],input[type=date],input[type=time],input[type=number],select,textarea{width:100%;border:1.5px solid #ddd;border-radius:7px;padding:9px 11px;font-size:.88rem;background:#fafafa;transition:border-color .15s;color:#222}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#FFD600;background:#fff;box-shadow:0 0 0 3px rgba(255,214,0,.15)}
+textarea{resize:vertical;min-height:60px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.sync-badge{display:inline-flex;align-items:center;gap:6px;font-size:.7rem;padding:5px 12px;border-radius:20px;margin-bottom:10px;font-weight:700}
+.sync-ok{background:#1a1a1a;color:#FFD600;border:1px solid #FFD600}
+.sync-err{background:#fff3e0;color:#e65100;border:1px solid #ff9800}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#FFD600}
+.sync-err .sync-dot{background:#e65100}
+
+.item-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.item-card{border:2px solid #e0e0e0;border-radius:9px;padding:11px 10px;cursor:pointer;transition:border-color .13s,background .13s;position:relative;user-select:none;background:#fff}
+.item-card:hover{border-color:#FFD600;background:#fffde7}
+.item-card.selected{border-color:#FFD600;background:#fff9c4}
+.item-name{font-size:.8rem;font-weight:700;color:#111}
+.item-price{font-size:.75rem;color:#111;margin-top:3px;font-weight:700}
+.item-unit{font-size:.68rem;color:#888;font-weight:400}
+.ck{position:absolute;top:6px;right:7px;width:18px;height:18px;border-radius:50%;background:#FFD600;color:#111;display:none;align-items:center;justify-content:center;font-size:10px;font-weight:900}
+.item-card.selected .ck{display:flex}
+.qty-row{display:flex;align-items:center;gap:5px;margin-top:7px}
+.qty-row .ql{font-size:.68rem;color:#666;flex:1}
+.qb{width:22px;height:22px;border-radius:50%;border:2px solid #FFD600;background:#fff;color:#111;font-size:.9rem;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .1s}
+.qb:hover{background:#FFD600}
+.qd{font-size:.82rem;font-weight:700;min-width:18px;text-align:center}
+.item-card:not(.selected) .qty-row{display:none}
+
+.toggle-row{display:flex;align-items:center;gap:12px}
+.toggle-label{font-size:.85rem;flex:1;color:#222}
+.switch{position:relative;display:inline-block;width:44px;height:24px}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:#ccc;border-radius:24px;transition:.2s;cursor:pointer}
+.slider:before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
+input:checked+.slider{background:#FFD600}
+input:checked+.slider:before{transform:translateX(20px)}
+.chur-detail{margin-top:10px;display:none}
+.chur-detail.visible{display:block}
+
+.cart-box{background:#111;border-radius:10px;overflow:hidden;border:2px solid #FFD600}
+.cart-hdr{background:#FFD600;color:#111;padding:11px 14px;font-size:.8rem;font-weight:700;letter-spacing:.5px}
+.cart-body{padding:12px 12px 0;min-height:60px}
+.cart-empty{color:#666;font-size:.78rem;text-align:center;padding:20px 0 4px}
+.cl{display:flex;justify-content:space-between;align-items:flex-start;font-size:.76rem;margin-bottom:8px;gap:6px}
+.cl .cn{flex:1;color:#fff;font-weight:600}
+.cl .cd{color:#aaa;font-size:.68rem}
+.cl .cv{color:#FFD600;font-weight:700;white-space:nowrap}
+.cart-div{border:none;border-top:1px solid #333;margin:10px 12px}
+.cart-tot{display:flex;justify-content:space-between;align-items:center;padding:10px 12px 4px;font-weight:700}
+.cart-tot-label{font-size:.82rem;color:#aaa}
+.cart-tot-val{font-size:1.2rem;color:#FFD600}
+.cart-note{font-size:.68rem;color:#666;padding:0 12px 10px}
+#cart-desc-row{padding:0 12px 8px;display:none}
+#cart-desc-row .dl{display:flex;justify-content:space-between;font-size:.72rem;color:#FFD600;font-weight:700}
+#cart-desc-row .tf{display:flex;justify-content:space-between;font-size:.85rem;font-weight:700;margin-top:4px;color:#fff}
+
+#msg-desc{margin-top:5px;font-size:.75rem;display:none}
+
+.btn-main{width:100%;padding:14px;background:#FFD600;color:#111;border:none;border-radius:9px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:12px;letter-spacing:.3px;transition:background .15s,transform .1s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-main:hover{background:#FFC200}
+.btn-main:active{transform:scale(.98)}
+.btn-main:disabled{background:#555;color:#888;cursor:not-allowed}
+
+.modal-wrap{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;padding:20px}
+.modal-wrap.open{display:flex}
+.modal{background:#111;border:2px solid #FFD600;border-radius:14px;padding:28px 24px;max-width:420px;width:100%;text-align:center}
+.modal .ico{font-size:2.8rem;margin-bottom:10px}
+.modal h2{font-size:1.1rem;color:#FFD600;margin-bottom:8px}
+.modal p{font-size:.85rem;color:#ccc;margin-bottom:18px;line-height:1.5}
+.btn-wpp{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:#25d366;color:#fff;border:none;border-radius:9px;font-size:.92rem;font-weight:700;cursor:pointer;text-decoration:none;margin-bottom:10px}
+.btn-wpp:hover{background:#1db954}
+.btn-sec{width:100%;padding:10px;background:#222;color:#aaa;border:1px solid #333;border-radius:9px;font-size:.85rem;cursor:pointer;margin-bottom:6px}
+.btn-sec:hover{background:#2a2a2a;color:#fff}
+
+.req{color:#FFD600}
+
+@media(max-width:680px){
+  .layout{flex-direction:column}
+  .cart-col{width:100%;position:static;padding:0 16px 16px}
+  .item-grid{grid-template-columns:1fr 1fr}
+  .row2{grid-template-columns:1fr}
+}
+@media print{
+  .no-print{display:none!important}
+  body{background:#fff}
+  .header{position:static;background:#fff;color:#000;border-bottom:2px solid #000}
+  .header h1{color:#000}
+  .cart-box{background:#fff;border-color:#000}
+  .cart-hdr{background:#000;color:#FFD600}
+}
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p>Carregando itens da planilha...</p>
+</div>
+
+<div class="header no-print">
+  <h1>🎵 TÁ NA MÃO LOCAÇÕES</h1>
+  <p>Monte seu evento e veja o valor em tempo real</p>
+</div>
+
+<div class="layout">
+<div class="form-col">
+
+  <div id="sync-badge" style="display:none"></div>
+
+  <div class="section">
+    <div class="section-title">👤 Seus Dados</div>
+    <div class="section-body">
+      <label class="fl">Nome completo <span class="req">*</span></label>
+      <input type="text" id="nome" placeholder="Seu nome completo">
+      <div class="row2">
+        <div>
+          <label class="fl">WhatsApp <span class="req">*</span></label>
+          <input type="tel" id="tel" placeholder="(00) 00000-0000">
+        </div>
+        <div>
+          <label class="fl">E-mail</label>
+          <input type="email" id="email" placeholder="seu@email.com">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📅 Dados do Evento</div>
+    <div class="section-body">
+      <div class="row2">
+        <div>
+          <label class="fl">Data do evento <span class="req">*</span></label>
+          <input type="date" id="data">
+        </div>
+        <div>
+          <label class="fl">Tipo de evento</label>
+          <select id="tipo">
+            <option value="">Selecione...</option>
+            <option>Casamento</option><option>Aniversário</option>
+            <option>Churrasco</option><option>Formatura</option>
+            <option>Corporativo</option><option>Show / Forró</option>
+            <option>Festa Infantil</option><option>Outro</option>
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div><label class="fl">Início</label><input type="time" id="hi"></div>
+        <div><label class="fl">Término</label><input type="time" id="hf"></div>
+      </div>
+      <label class="fl">Local / Endereço <span class="req">*</span></label>
+      <input type="text" id="local" placeholder="Rua, número, bairro">
+      <div class="row2">
+        <div><label class="fl">Cidade</label><input type="text" id="cidade" placeholder="Sua cidade"></div>
+        <div><label class="fl">Nº de pessoas (est.)</label><input type="number" id="pessoas" placeholder="ex: 80" min="1"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="secoes-itens"></div>
+
+  <div class="section">
+    <div class="section-title">🔥 Churrasqueiro</div>
+    <div class="section-body">
+      <div class="toggle-row">
+        <span class="toggle-label">Deseja contratar churrasqueiro? <strong>(R$ 150,00/evento)</strong></span>
+        <label class="switch"><input type="checkbox" id="chur" onchange="atualizar()"><span class="slider"></span></label>
+      </div>
+      <div class="chur-detail" id="chur-detail">
+        <div class="row2" style="margin-top:10px">
+          <div>
+            <label class="fl">Quantidade</label>
+            <select id="qtd-chur" onchange="atualizar()">
+              <option value="1">1 churrasqueiro</option>
+              <option value="2">2 churrasqueiros</option>
+              <option value="3">3 churrasqueiros</option>
+            </select>
+          </div>
+          <div>
+            <label class="fl">Duração</label>
+            <select id="dur-chur">
+              <option>Até 4 horas</option>
+              <option selected>Até 6 horas</option>
+              <option>Até 8 horas</option>
+              <option>Diária (10h+)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">💬 Desconto & Observações</div>
+    <div class="section-body">
+      <label class="fl">Código de desconto</label>
+      <input type="text" id="cod-desc" placeholder="Ex: AMIGO10" oninput="calcDesc()" style="text-transform:uppercase">
+      <div id="msg-desc"></div>
+      <label class="fl" style="margin-top:12px">Forma de pagamento</label>
+      <select id="pgto">
+        <option>A Combinar</option><option>Pix</option><option>Dinheiro</option>
+        <option>Cartão Crédito</option><option>Cartão Débito</option><option>Transferência</option>
+      </select>
+      <label class="fl" style="margin-top:12px">Observações</label>
+      <textarea id="obs" placeholder="Dúvidas, pedidos especiais, restrições de acesso..."></textarea>
+      <label class="fl">Como nos conheceu?</label>
+      <select id="como">
+        <option value="">Selecione...</option>
+        <option>Instagram</option><option>Facebook</option><option>Indicação</option>
+        <option>Google</option><option>WhatsApp</option><option>Já sou cliente</option><option>Outro</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-main no-print" id="btn-enviar" onclick="enviar()">
+    📋 Gerar Orçamento & Enviar
+  </button>
+  <p style="font-size:.7rem;color:#aaa;text-align:center;margin-top:8px;margin-bottom:20px">
+    Você receberá o resumo pelo WhatsApp e um PDF do orçamento.
+  </p>
+
+</div>
+
+<div class="cart-col no-print">
+  <div class="cart-box">
+    <div class="cart-hdr">🛒 SEU ORÇAMENTO</div>
+    <div class="cart-body" id="cart-body"><p class="cart-empty">Selecione os itens ao lado</p></div>
+    <hr class="cart-div">
+    <div class="cart-tot">
+      <span class="cart-tot-label">Total estimado</span>
+      <span class="cart-tot-val" id="cart-total">R$ 0,00</span>
+    </div>
+    <div id="cart-desc-row">
+      <div class="dl"><span>Desconto</span><span id="desc-val"></span></div>
+      <div class="tf"><span>Total final</span><span id="total-final"></span></div>
+    </div>
+    <p class="cart-note">* Transporte calculado separadamente</p>
+  </div>
+</div>
+</div>
+
+<div class="modal-wrap" id="modal">
+  <div class="modal">
+    <div class="ico">✅</div>
+    <h2>Orçamento gerado!</h2>
+    <p id="modal-txt"></p>
+    <a class="btn-wpp" id="btn-wpp" href="#" target="_blank">📱 Enviar pelo WhatsApp</a>
+    <button class="btn-sec" onclick="window.print()">🖨️ Baixar PDF</button>
+    <button class="btn-sec" onclick="fechar()">🔄 Novo orçamento</button>
+  </div>
+</div>
+
+<script>
+// ══════════════ CONFIGURAÇÕES ══════════════
+const CFG = {
+  URL: "COLE_AQUI_A_URL_DO_APPS_SCRIPT",
+  WPP: "5500000000000",
+  PRECO_CHUR: 150,
+  DESCONTOS: { "AMIGO10":10, "FIDELIDADE15":15, "PROMO20":20 },
+};
+// ═══════════════════════════════════════════
+
+let CATALOGO = [];
+let sel = {};
+let pct = 0;
+
+// ── CARREGAR DA PLANILHA (JSONP) ────────────────────────────
+function carregar() {
+  if (!CFG.URL || CFG.URL === "COLE_AQUI_A_URL_DO_APPS_SCRIPT") {
+    fallback(); render(); hide();
+    badge(false, "URL não configurada — usando catálogo padrão"); return;
+  }
+  const t = setTimeout(() => { fallback(); render(); hide(); badge(false,"Tempo esgotado"); }, 8000);
+  window._cbCatalogo = d => {
+    clearTimeout(t);
+    if (d.ok && d.itens && d.itens.length) {
+      CATALOGO = d.itens;
+      badge(true, d.itens.length + " itens carregados da planilha");
+    } else { fallback(); badge(false, "Erro: " + (d.erro||"sem itens")); }
+    render(); hide();
+  };
+  const s = document.createElement("script");
+  s.src = CFG.URL + "?callback=_cbCatalogo";
+  s.onerror = () => { clearTimeout(t); fallback(); render(); hide(); badge(false,"Erro de conexão"); };
+  document.head.appendChild(s);
+}
+
+function fallback() {
+  CATALOGO = [
+    {id:"s1",nome:'Caixa Ativa 15"',cat:"Som",unidade:"por cx/dia",preco:80},
+    {id:"s2",nome:"Kit Som Completo",cat:"Som",unidade:"kit/dia",preco:280},
+    {id:"s3",nome:"Mesa de Som 12 Ch.",cat:"Som",unidade:"por dia",preco:60},
+    {id:"s4",nome:"Microfone c/ Fio",cat:"Som",unidade:"por unid/dia",preco:20},
+    {id:"s5",nome:"Microfone Sem Fio",cat:"Som",unidade:"por unid/dia",preco:30},
+    {id:"s6",nome:'Subwoofer 18"',cat:"Som",unidade:"por unid/dia",preco:70},
+    {id:"i1",nome:"Kit LED (6 ref.)",cat:"Iluminação",unidade:"kit/dia",preco:120},
+    {id:"i2",nome:"Moving Head Beam",cat:"Iluminação",unidade:"por unid/dia",preco:80},
+    {id:"i3",nome:"Strobo LED",cat:"Iluminação",unidade:"por unid/dia",preco:30},
+    {id:"i4",nome:"Máq. de Fumaça",cat:"Iluminação",unidade:"por dia",preco:50},
+    {id:"m1",nome:"Mesa Plást. 1,80m",cat:"Mesas",unidade:"por unid/dia",preco:15},
+    {id:"m2",nome:"Mesa Redonda",cat:"Mesas",unidade:"por unid/dia",preco:12},
+    {id:"m3",nome:"Cadeira Plástica",cat:"Cadeiras",unidade:"por unid/dia",preco:3},
+    {id:"m4",nome:"Cadeira c/ Braço",cat:"Cadeiras",unidade:"por unid/dia",preco:5},
+    {id:"m5",nome:"Toalha de Mesa",cat:"Mesas",unidade:"por unid/dia",preco:8},
+    {id:"f1",nome:"Gerador 5kVA",cat:"Ferramentas",unidade:"por dia",preco:200},
+    {id:"f2",nome:"Tenda 3×3",cat:"Ferramentas",unidade:"por unid/dia",preco:120},
+    {id:"f3",nome:"Extensão 20m",cat:"Ferramentas",unidade:"por unid/dia",preco:15},
+  ];
+}
+
+function hide() { document.getElementById("loading-overlay").classList.add("hidden"); }
+function badge(ok, txt) {
+  const el = document.getElementById("sync-badge");
+  el.style.display = "inline-flex";
+  el.className = "sync-badge no-print " + (ok ? "sync-ok" : "sync-err");
+  el.innerHTML = '<span class="sync-dot"></span>' + txt;
+}
+
+// ── RENDERIZAR ITENS ────────────────────────────────────────
+const ICONS = {Som:"🔊",Iluminação:"💡",Mesas:"🪑",Cadeiras:"🪑",Ferramentas:"🔧",Decoração:"🎀",Outros:"📦"};
+
+function render() {
+  const cont = document.getElementById("secoes-itens");
+  cont.innerHTML = "";
+  const cats = {};
+  CATALOGO.forEach(it => { if (!cats[it.cat]) cats[it.cat]=[]; cats[it.cat].push(it); });
+  Object.entries(cats).forEach(([cat, itens]) => {
+    const s = document.createElement("div");
+    s.className = "section";
+    s.innerHTML = `<div class="section-title">${ICONS[cat]||"📦"} ${cat}</div><div class="section-body"><div class="item-grid" id="g-${slug(cat)}"></div></div>`;
+    cont.appendChild(s);
+    itens.forEach(it => card(it, s.querySelector(".item-grid")));
+  });
+}
+
+function slug(s) { return s.toLowerCase().replace(/[^a-z0-9]/g,"_"); }
+
+function card(it, grid) {
+  const d = document.createElement("div");
+  d.className = "item-card"; d.id = "c-"+it.id;
+  d.innerHTML = `<span class="ck">✓</span>
+    <div class="item-name">${it.nome}</div>
+    <div class="item-price">R$ ${fmt(it.preco)} <span class="item-unit">${it.unidade||""}</span></div>
+    <div class="qty-row"><span class="ql">Qtd:</span>
+      <button class="qb" onclick="chq('${it.id}',-1,event)">−</button>
+      <span class="qd" id="q-${it.id}">1</span>
+      <button class="qb" onclick="chq('${it.id}',1,event)">+</button>
+    </div>`;
+  d.addEventListener("click", e => { if(e.target.classList.contains("qb")) return; toggle(it); });
+  grid.appendChild(d);
+}
+
+// ── CARRINHO ────────────────────────────────────────────────
+function toggle(it) {
+  const c = document.getElementById("c-"+it.id);
+  if (sel[it.id]) { delete sel[it.id]; c.classList.remove("selected"); }
+  else { sel[it.id]={it,qty:1}; c.classList.add("selected"); }
+  atualizar();
+}
+function chq(id, d, e) {
+  e.stopPropagation();
+  if (!sel[id]) return;
+  sel[id].qty = Math.max(1, sel[id].qty+d);
+  document.getElementById("q-"+id).textContent = sel[id].qty;
+  atualizar();
+}
+function atualizar() {
+  document.getElementById("chur-detail").classList.toggle("visible", document.getElementById("chur").checked);
+  let total=0, html="";
+  const keys=Object.keys(sel), chur=document.getElementById("chur").checked;
+  const qtdC=parseInt(document.getElementById("qtd-chur").value||1);
+  if(!keys.length && !chur) { html='<p class="cart-empty">Selecione os itens ao lado</p>'; }
+  else {
+    keys.forEach(id => {
+      const {it,qty}=sel[id], sub=it.preco*qty; total+=sub;
+      html+=`<div class="cl"><div><div class="cn">${it.nome}</div><div class="cd">R$ ${fmt(it.preco)} × ${qty}</div></div><div class="cv">R$ ${fmt(sub)}</div></div>`;
+    });
+    if(chur){const s=CFG.PRECO_CHUR*qtdC;total+=s;html+=`<div class="cl"><div><div class="cn">🔥 Churrasqueiro</div><div class="cd">R$ ${fmt(CFG.PRECO_CHUR)} × ${qtdC}</div></div><div class="cv">R$ ${fmt(s)}</div></div>`;}
+  }
+  document.getElementById("cart-body").innerHTML=html;
+  document.getElementById("cart-total").textContent="R$ "+fmt(total);
+  const dr=document.getElementById("cart-desc-row");
+  if(pct>0&&total>0){const dv=total*pct/100;dr.style.display="block";document.getElementById("desc-val").textContent="− R$ "+fmt(dv)+" ("+pct+"%)";document.getElementById("total-final").textContent="R$ "+fmt(total-dv);}
+  else dr.style.display="none";
+}
+
+// ── DESCONTO ────────────────────────────────────────────────
+function calcDesc() {
+  const cod=document.getElementById("cod-desc").value.trim().toUpperCase();
+  const el=document.getElementById("msg-desc");
+  if(CFG.DESCONTOS[cod]){pct=CFG.DESCONTOS[cod];el.style.display="block";el.style.color="#2e7d32";el.textContent="✅ Desconto de "+pct+"% aplicado!";}
+  else if(cod.length>3){pct=0;el.style.display="block";el.style.color="#c62828";el.textContent="❌ Código inválido.";}
+  else{pct=0;el.style.display="none";}
+  atualizar();
+}
+
+// ── ENVIAR ──────────────────────────────────────────────────
+function enviar() {
+  const nome=document.getElementById("nome").value.trim();
+  const tel=document.getElementById("tel").value.trim();
+  const data=document.getElementById("data").value;
+  const local=document.getElementById("local").value.trim();
+  if(!nome||!tel||!data||!local){alert("Preencha: Nome, WhatsApp, Data do evento e Local.");return;}
+  if(!Object.keys(sel).length&&!document.getElementById("chur").checked){alert("Selecione pelo menos um item.");return;}
+
+  const btn=document.getElementById("btn-enviar");
+  btn.disabled=true; btn.textContent="Aguarde...";
+
+  let raw=0;
+  Object.values(sel).forEach(({it,qty})=>raw+=it.preco*qty);
+  const chur=document.getElementById("chur").checked;
+  const qtdC=parseInt(document.getElementById("qtd-chur").value||1);
+  if(chur) raw+=CFG.PRECO_CHUR*qtdC;
+  const dv=raw*pct/100, total=raw-dv;
+  const [a,m,d]=data.split("-"), dataFmt=`${d}/${m}/${a}`;
+
+  const itensArr=Object.values(sel).map(({it,qty})=>({nome:it.nome,qty,sub:it.preco*qty}));
+  const itensStr=itensArr.map(i=>i.nome+" x"+i.qty).join(", ")+(chur?", Churrasqueiro x"+qtdC:"");
+
+  // Salvar na planilha
+  if(CFG.URL && CFG.URL!=="COLE_AQUI_A_URL_DO_APPS_SCRIPT"){
+    window._cbSalvar=r=>{};
+    const dados={
+      cliente:nome,tel,email:document.getElementById("email").value,
+      data,hi:document.getElementById("hi").value,hf:document.getElementById("hf").value,
+      local,cidade:document.getElementById("cidade").value,
+      pessoas:document.getElementById("pessoas").value,
+      itens:itensStr,chur,desconto:dv.toFixed(2),total:total.toFixed(2),
+      pgto:document.getElementById("pgto").value,obs:document.getElementById("obs").value
+    };
+    const s=document.createElement("script");
+    s.src=CFG.URL+"?action=salvar&callback=_cbSalvar&dados="+encodeURIComponent(JSON.stringify(dados));
+    document.head.appendChild(s);
+  }
+
+  // WhatsApp
+  let msg="🎵 *TÁ NA MÃO LOCAÇÕES*\n━━━━━━━━━━━━━━━━━━\n📋 *ORÇAMENTO*\n\n";
+  msg+=`👤 *Cliente:* ${nome}\n📞 *WhatsApp:* ${tel}\n📅 *Data:* ${dataFmt}\n📍 *Local:* ${local}`;
+  if(document.getElementById("cidade").value) msg+=" — "+document.getElementById("cidade").value;
+  msg+="\n\n🛒 *Itens:*\n";
+  itensArr.forEach(i=>msg+=`• ${i.nome} (x${i.qty}) — R$ ${fmt(i.sub)}\n`);
+  if(chur) msg+=`• Churrasqueiro (x${qtdC}) — R$ ${fmt(CFG.PRECO_CHUR*qtdC)}\n`;
+  msg+=`\n💰 *Subtotal:* R$ ${fmt(raw)}\n`;
+  if(pct>0) msg+=`🏷️ *Desconto (${pct}%):* − R$ ${fmt(dv)}\n✅ *TOTAL FINAL: R$ ${fmt(total)}*\n`;
+  else msg+=`✅ *TOTAL: R$ ${fmt(raw)}*\n`;
+  if(document.getElementById("obs").value) msg+=`\n💬 *Obs:* ${document.getElementById("obs").value}`;
+  msg+="\n\n_Sujeito a confirmação de disponibilidade._";
+
+  document.getElementById("btn-wpp").href="https://wa.me/"+CFG.WPP+"?text="+encodeURIComponent(msg);
+  document.getElementById("modal-txt").textContent=`Olá ${nome}! Orçamento de R$ ${fmt(total)} pronto.`;
+  document.getElementById("modal").classList.add("open");
+  btn.disabled=false; btn.textContent="📋 Gerar Orçamento & Enviar";
+}
+
+function fechar(){
+  document.getElementById("modal").classList.remove("open");
+  sel={}; pct=0;
+  document.querySelectorAll(".item-card.selected").forEach(c=>c.classList.remove("selected"));
+  document.querySelectorAll(".qd").forEach(e=>e.textContent="1");
+  document.getElementById("chur").checked=false;
+  document.getElementById("chur-detail").classList.remove("visible");
+  ["nome","tel","email","local","cidade","pessoas","cod-desc","obs"].forEach(id=>{const e=document.getElementById(id);if(e)e.value="";});
+  document.getElementById("data").value="";
+  document.getElementById("msg-desc").style.display="none";
+  atualizar(); window.scrollTo(0,0);
+}
+
+function fmt(v){return Number(v).toFixed(2).replace(".",",");}
+
+carregar();
+</script>
+</body>
+</html>
