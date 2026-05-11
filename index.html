@@ -8,7 +8,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Poppins',sans-serif;background:#1a1a1a;color:#222;min-height:100vh}
-.header{background:#000;color:#000000;padding:12px 20px 10px;text-align:center;position:sticky;top:0;z-index:100;border-bottom:3px solid #FFD600;display:flex;flex-direction:column;align-items:center}
+.header{background:#000;color:#FFD600;padding:12px 20px 10px;text-align:center;position:sticky;top:0;z-index:100;border-bottom:3px solid #FFD600;display:flex;flex-direction:column;align-items:center}
 .header p{font-size:.78rem;opacity:.8;margin-top:2px;color:#fff}
 .layout{display:flex;max-width:1000px;margin:0 auto;align-items:flex-start}
 .form-col{flex:1 1 0;padding:16px;min-width:0}
@@ -234,6 +234,7 @@ input:checked+.slider:before{transform:translateX(20px)}
 
 <script>
 var WPP = "556199696902";
+var SCRIPT_URL = "COLE_AQUI_A_URL_DO_APPS_SCRIPT";
 var PRECO_CHUR = 150;
 var DESCONTOS = {"AMIGO10":10,"FIDELIDADE15":15,"PROMO20":20};
 
@@ -342,6 +343,19 @@ function calcDesc() {
   atualizar();
 }
 
+function salvarNaPlanilha(dados) {
+  if (!SCRIPT_URL || SCRIPT_URL === "COLE_AQUI_A_URL_DO_APPS_SCRIPT") return;
+  try {
+    window._cbSalvar = function(r) {
+      if (r.ok) console.log("Salvo na linha " + r.linha);
+      else console.log("Erro ao salvar: " + r.erro);
+    };
+    var s = document.createElement("script");
+    s.src = SCRIPT_URL + "?action=salvar&callback=_cbSalvar&dados=" + encodeURIComponent(JSON.stringify(dados));
+    document.head.appendChild(s);
+  } catch(e) { console.log("Erro:", e); }
+}
+
 function enviar() {
   var nome=document.getElementById("nome").value.trim();
   var tel=document.getElementById("tel").value.trim();
@@ -357,6 +371,20 @@ function enviar() {
   if(chur) raw+=PRECO_CHUR*qtdC;
   var dv=raw*pct/100, total=raw-dv;
   var pts=data.split("-"), dataFmt=pts[2]+"/"+pts[1]+"/"+pts[0];
+
+  // Montar dados para planilha
+  var dadosPlanilha = {
+    cliente: nome, tel: tel,
+    data: data, hi: document.getElementById("hi").value,
+    hf: document.getElementById("hf").value,
+    local: local, cidade: document.getElementById("cidade").value,
+    pessoas: document.getElementById("pessoas").value,
+    itens: Object.values(sel).map(function(o){return o.it.nome+" x"+o.qty;}).join(", ") + (chur ? ", Churrasqueiro x"+qtdC : ""),
+    chur: chur, desconto: dv.toFixed(2), total: total.toFixed(2),
+    pgto: document.getElementById("pgto").value,
+    obs: document.getElementById("obs").value
+  };
+  salvarNaPlanilha(dadosPlanilha);
 
   var msg="*TA NA MAO LOCACOES*\n";
   msg+="ORCAMENTO\n\n";
