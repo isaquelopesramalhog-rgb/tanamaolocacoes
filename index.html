@@ -12,12 +12,6 @@ body{font-family:Arial,sans-serif;background:#1a1a1a;color:#222;min-height:100vh
 .header h1{font-size:1.3rem;font-weight:700;letter-spacing:1px}
 .header p{font-size:.78rem;opacity:.8;margin-top:3px;color:#fff}
 
-#loading-overlay{position:fixed;inset:0;background:rgba(17,17,17,.96);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
-#loading-overlay.hidden{display:none}
-.spinner{width:44px;height:44px;border:4px solid #333;border-top:4px solid #FFD600;border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-#loading-overlay p{color:#aaa;font-size:.9rem}
-
 .layout{display:flex;max-width:1000px;margin:0 auto;align-items:flex-start}
 .form-col{flex:1 1 0;padding:16px;min-width:0}
 .cart-col{width:280px;flex-shrink:0;padding:16px;position:sticky;top:68px}
@@ -121,11 +115,6 @@ input:checked+.slider:before{transform:translateX(20px)}
 </head>
 <body>
 
-<div id="loading-overlay">
-  <div class="spinner"></div>
-  <p>Carregando itens da planilha...</p>
-</div>
-
 <div class="header no-print">
   <h1>🎵 TÁ NA MÃO LOCAÇÕES</h1>
   <p>Monte seu evento e veja o valor em tempo real</p>
@@ -133,8 +122,6 @@ input:checked+.slider:before{transform:translateX(20px)}
 
 <div class="layout">
 <div class="form-col">
-
-  <div id="sync-badge" style="display:none"></div>
 
   <div class="section">
     <div class="section-title">👤 Seus Dados</div>
@@ -282,69 +269,36 @@ input:checked+.slider:before{transform:translateX(20px)}
 <script>
 // ══════════════ CONFIGURAÇÕES ══════════════
 const CFG = {
-  URL: "https://script.google.com/macros/s/AKfycbyrUV8K9Bu9rw-SU9mWpM6vbpUbLmF-uK-1AXHABc1ZT0lca0hOu4MNaYfXN8xAC7k/exec",
-  WPP: "61996196902",
+  WPP: "556199696902",
   PRECO_CHUR: 150,
   DESCONTOS: { "AMIGO10":10, "FIDELIDADE15":15, "PROMO20":20 },
 };
 // ═══════════════════════════════════════════
 
-let CATALOGO = [];
+// ── CATÁLOGO DE ITENS (edite aqui os preços) ──
+const CATALOGO = [
+  {id:"s1",nome:'Caixa Ativa 15"',     cat:"Som",         unidade:"por cx/dia",   preco:80},
+  {id:"s2",nome:"Kit Som Completo",    cat:"Som",         unidade:"kit/dia",      preco:280},
+  {id:"s3",nome:"Mesa de Som 12 Ch.",  cat:"Som",         unidade:"por dia",      preco:60},
+  {id:"s4",nome:"Microfone c/ Fio",    cat:"Som",         unidade:"por unid/dia", preco:20},
+  {id:"s5",nome:"Microfone Sem Fio",   cat:"Som",         unidade:"por unid/dia", preco:30},
+  {id:"s6",nome:'Subwoofer 18"',       cat:"Som",         unidade:"por unid/dia", preco:70},
+  {id:"i1",nome:"Kit LED (6 ref.)",    cat:"Iluminação",  unidade:"kit/dia",      preco:120},
+  {id:"i2",nome:"Moving Head Beam",    cat:"Iluminação",  unidade:"por unid/dia", preco:80},
+  {id:"i3",nome:"Strobo LED",          cat:"Iluminação",  unidade:"por unid/dia", preco:30},
+  {id:"i4",nome:"Máq. de Fumaça",      cat:"Iluminação",  unidade:"por dia",      preco:50},
+  {id:"m1",nome:"Mesa Plást. 1,80m",   cat:"Mesas",       unidade:"por unid/dia", preco:15},
+  {id:"m2",nome:"Mesa Redonda",        cat:"Mesas",       unidade:"por unid/dia", preco:12},
+  {id:"m3",nome:"Cadeira Plástica",    cat:"Cadeiras",    unidade:"por unid/dia", preco:3},
+  {id:"m4",nome:"Cadeira c/ Braço",    cat:"Cadeiras",    unidade:"por unid/dia", preco:5},
+  {id:"m5",nome:"Toalha de Mesa",      cat:"Mesas",       unidade:"por unid/dia", preco:8},
+  {id:"f1",nome:"Gerador 5kVA",        cat:"Ferramentas", unidade:"por dia",      preco:200},
+  {id:"f2",nome:"Tenda 3x3",           cat:"Ferramentas", unidade:"por unid/dia", preco:120},
+  {id:"f3",nome:"Extensão 20m",        cat:"Ferramentas", unidade:"por unid/dia", preco:15},
+];
+
 let sel = {};
 let pct = 0;
-
-// ── CARREGAR DA PLANILHA (JSONP) ────────────────────────────
-function carregar() {
-  if (!CFG.URL) { {
-    fallback(); render(); hide();
-    badge(false, "URL não configurada — usando catálogo padrão"); return;
-  }
-  const cb = "_cb_" + Date.now();
-  const t = setTimeout(() => { delete window[cb]; fallback(); render(); hide(); badge(false,"Tempo esgotado"); }, 8000);
-  window[cb] = d => {
-    clearTimeout(t); delete window[cb];
-    if (d.ok && d.itens && d.itens.length) {
-      CATALOGO = d.itens;
-      badge(true, d.itens.length + " itens carregados da planilha");
-    } else { fallback(); badge(false, "Erro: " + (d.erro||"sem itens")); }
-    render(); hide();
-  };
-  const s = document.createElement("script");
-  s.src = CFG.URL + "?callback=" + cb;
-  s.onerror = () => { clearTimeout(t); delete window[cb]; fallback(); render(); hide(); badge(false,"Erro de conexão"); };
-  document.head.appendChild(s);
-}
-
-function fallback() {
-  CATALOGO = [
-    {id:"s1",nome:'Caixa Ativa 15"',cat:"Som",unidade:"por cx/dia",preco:80},
-    {id:"s2",nome:"Kit Som Completo",cat:"Som",unidade:"kit/dia",preco:280},
-    {id:"s3",nome:"Mesa de Som 12 Ch.",cat:"Som",unidade:"por dia",preco:60},
-    {id:"s4",nome:"Microfone c/ Fio",cat:"Som",unidade:"por unid/dia",preco:20},
-    {id:"s5",nome:"Microfone Sem Fio",cat:"Som",unidade:"por unid/dia",preco:30},
-    {id:"s6",nome:'Subwoofer 18"',cat:"Som",unidade:"por unid/dia",preco:70},
-    {id:"i1",nome:"Kit LED (6 ref.)",cat:"Iluminação",unidade:"kit/dia",preco:120},
-    {id:"i2",nome:"Moving Head Beam",cat:"Iluminação",unidade:"por unid/dia",preco:80},
-    {id:"i3",nome:"Strobo LED",cat:"Iluminação",unidade:"por unid/dia",preco:30},
-    {id:"i4",nome:"Máq. de Fumaça",cat:"Iluminação",unidade:"por dia",preco:50},
-    {id:"m1",nome:"Mesa Plást. 1,80m",cat:"Mesas",unidade:"por unid/dia",preco:15},
-    {id:"m2",nome:"Mesa Redonda",cat:"Mesas",unidade:"por unid/dia",preco:12},
-    {id:"m3",nome:"Cadeira Plástica",cat:"Cadeiras",unidade:"por unid/dia",preco:3},
-    {id:"m4",nome:"Cadeira c/ Braço",cat:"Cadeiras",unidade:"por unid/dia",preco:5},
-    {id:"m5",nome:"Toalha de Mesa",cat:"Mesas",unidade:"por unid/dia",preco:8},
-    {id:"f1",nome:"Gerador 5kVA",cat:"Ferramentas",unidade:"por dia",preco:200},
-    {id:"f2",nome:"Tenda 3×3",cat:"Ferramentas",unidade:"por unid/dia",preco:120},
-    {id:"f3",nome:"Extensão 20m",cat:"Ferramentas",unidade:"por unid/dia",preco:15},
-  ];
-}
-
-function hide() { document.getElementById("loading-overlay").classList.add("hidden"); }
-function badge(ok, txt) {
-  const el = document.getElementById("sync-badge");
-  el.style.display = "inline-flex";
-  el.className = "sync-badge no-print " + (ok ? "sync-ok" : "sync-err");
-  el.innerHTML = '<span class="sync-dot"></span>' + txt;
-}
 
 // ── RENDERIZAR ITENS ────────────────────────────────────────
 const ICONS = {Som:"🔊",Iluminação:"💡",Mesas:"🪑",Cadeiras:"🪑",Ferramentas:"🔧",Decoração:"🎀",Outros:"📦"};
@@ -443,39 +397,39 @@ function enviar() {
   if(chur) raw+=CFG.PRECO_CHUR*qtdC;
   const dv=raw*pct/100, total=raw-dv;
   const [a,m,d]=data.split("-"), dataFmt=`${d}/${m}/${a}`;
-
   const itensArr=Object.values(sel).map(({it,qty})=>({nome:it.nome,qty,sub:it.preco*qty}));
-  const itensStr=itensArr.map(i=>i.nome+" x"+i.qty).join(", ")+(chur?", Churrasqueiro x"+qtdC:"");
 
-  // Salvar na planilha
-  if(CFG.URL){
-    const cb="_sv_"+Date.now();
-    window[cb]=r=>{delete window[cb];};
-    const dados={
-      cliente:nome,tel,email:document.getElementById("email").value,
-      data,hi:document.getElementById("hi").value,hf:document.getElementById("hf").value,
-      local,cidade:document.getElementById("cidade").value,
-      pessoas:document.getElementById("pessoas").value,
-      itens:itensStr,chur,desconto:dv.toFixed(2),total:total.toFixed(2),
-      pgto:document.getElementById("pgto").value,obs:document.getElementById("obs").value
-    };
-    const s=document.createElement("script");
-    s.src=CFG.URL+"?action=salvar&callback="+cb+"&dados="+encodeURIComponent(JSON.stringify(dados));
-    document.head.appendChild(s);
-  }
+  let msg="🎵 *TÁ NA MÃO LOCAÇÕES*
+━━━━━━━━━━━━━━━━━━
+📋 *ORÇAMENTO*
 
-  // WhatsApp
-  let msg="🎵 *TÁ NA MÃO LOCAÇÕES*\n━━━━━━━━━━━━━━━━━━\n📋 *ORÇAMENTO*\n\n";
-  msg+=`👤 *Cliente:* ${nome}\n📞 *WhatsApp:* ${tel}\n📅 *Data:* ${dataFmt}\n📍 *Local:* ${local}`;
+";
+  msg+=`👤 *Cliente:* ${nome}
+📞 *WhatsApp:* ${tel}
+📅 *Data:* ${dataFmt}
+📍 *Local:* ${local}`;
   if(document.getElementById("cidade").value) msg+=" — "+document.getElementById("cidade").value;
-  msg+="\n\n🛒 *Itens:*\n";
-  itensArr.forEach(i=>msg+=`• ${i.nome} (x${i.qty}) — R$ ${fmt(i.sub)}\n`);
-  if(chur) msg+=`• Churrasqueiro (x${qtdC}) — R$ ${fmt(CFG.PRECO_CHUR*qtdC)}\n`;
-  msg+=`\n💰 *Subtotal:* R$ ${fmt(raw)}\n`;
-  if(pct>0) msg+=`🏷️ *Desconto (${pct}%):* − R$ ${fmt(dv)}\n✅ *TOTAL FINAL: R$ ${fmt(total)}*\n`;
-  else msg+=`✅ *TOTAL: R$ ${fmt(raw)}*\n`;
-  if(document.getElementById("obs").value) msg+=`\n💬 *Obs:* ${document.getElementById("obs").value}`;
-  msg+="\n\n_Sujeito a confirmação de disponibilidade._";
+  msg+="
+
+🛒 *Itens:*
+";
+  itensArr.forEach(i=>msg+=`• ${i.nome} (x${i.qty}) — R$ ${fmt(i.sub)}
+`);
+  if(chur) msg+=`• Churrasqueiro (x${qtdC}) — R$ ${fmt(CFG.PRECO_CHUR*qtdC)}
+`;
+  msg+=`
+💰 *Subtotal:* R$ ${fmt(raw)}
+`;
+  if(pct>0) msg+=`🏷️ *Desconto (${pct}%):* − R$ ${fmt(dv)}
+✅ *TOTAL FINAL: R$ ${fmt(total)}*
+`;
+  else msg+=`✅ *TOTAL: R$ ${fmt(raw)}*
+`;
+  if(document.getElementById("obs").value) msg+=`
+💬 *Obs:* ${document.getElementById("obs").value}`;
+  msg+="
+
+_Sujeito a confirmação de disponibilidade._";
 
   document.getElementById("btn-wpp").href="https://wa.me/"+CFG.WPP+"?text="+encodeURIComponent(msg);
   document.getElementById("modal-txt").textContent=`Olá ${nome}! Orçamento de R$ ${fmt(total)} pronto.`;
@@ -498,7 +452,7 @@ function fechar(){
 
 function fmt(v){return Number(v).toFixed(2).replace(".",",");}
 
-carregar();}
+render();
 </script>
 </body>
 </html>
