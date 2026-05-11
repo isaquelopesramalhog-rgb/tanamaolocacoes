@@ -368,7 +368,7 @@ input:checked + .slider:before { transform: translateX(20px); }
 // ══════════════════════════════════════════════════════════════════
 const CONFIG = {
   // Cole aqui a URL gerada ao publicar o Apps Script
-  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzCAc1AVdQLaxT8Xt18OOR0TTDbw8_LzIGdTqDAiuZ7dVqBwrQpzINefbRrnguoYXY/execT",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzCAc1AVdQLaxT8Xt18OOR0TTDbw8_LzIGdTqDAiuZ7dVqBwrQpzINefbRrnguoYXY/exec",
 
   // Seu número com DDI+DDD, ex: "5511999990000"
   WHATSAPP: "5561996196902",
@@ -390,30 +390,54 @@ let selecionados   = {};  // { id: { item, qty } }
 let pctDesc        = 0;
 
 // ── CARREGAR ITENS DA PLANILHA ──────────────────────────────────
-async function carregarCatalogo() {
-  // Se URL não configurada, usa fallback estático
+function carregarCatalogo() {
   if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbzCAc1AVdQLaxT8Xt18OOR0TTDbw8_LzIGdTqDAiuZ7dVqBwrQpzINefbRrnguoYXY/exec") {
     usarCatalogoFallback();
+    renderizarCatalogo();
+    document.getElementById("loading-overlay").classList.add("hidden");
     return;
   }
-  try {
-    const resp = await fetch(CONFIG.APPS_SCRIPT_URL);
-    const data = await resp.json();
-    if (data.ok && data.itens.length > 0) {
-      ITENS_CATALOGO = data.itens;
-      mostrarBadge(true, `${data.itens.length} itens carregados da planilha`);
-    } else {
-      throw new Error(data.erro || "Resposta vazia");
+
+  // JSONP — único método que funciona cross-origin com Apps Script
+  window._jsonpCallback = function(data) {
+    try {
+      if (data.ok && data.itens.length > 0) {
+        ITENS_CATALOGO = data.itens;
+        mostrarBadge(true, `${data.itens.length} itens carregados da planilha`);
+      } else {
+        throw new Error(data.erro || "Resposta vazia");
+      }
+    } catch(e) {
+      document.getElementById("erro-detalhe").textContent = e.message;
+      document.getElementById("erro-carga").classList.add("visivel");
+      mostrarBadge(false, "Erro ao carregar planilha — usando catálogo padrão");
+      usarCatalogoFallback();
+    } finally {
+      renderizarCatalogo();
+      document.getElementById("loading-overlay").classList.add("hidden");
     }
-  } catch (e) {
-    document.getElementById("erro-detalhe").textContent = e.message;
+  };
+
+  // Timeout caso o script não responda
+  const timeout = setTimeout(() => {
+    document.getElementById("erro-detalhe").textContent = "Tempo esgotado";
     document.getElementById("erro-carga").classList.add("visivel");
     mostrarBadge(false, "Erro ao carregar planilha — usando catálogo padrão");
     usarCatalogoFallback();
-  } finally {
     renderizarCatalogo();
     document.getElementById("loading-overlay").classList.add("hidden");
-  }
+  }, 8000);
+
+  const script = document.createElement("script");
+  script.src = CONFIG.APPS_SCRIPT_URL + "?callback=_jsonpCallback";
+  script.onload = () => clearTimeout(timeout);
+  script.onerror = () => {
+    clearTimeout(timeout);
+    usarCatalogoFallback();
+    renderizarCatalogo();
+    document.getElementById("loading-overlay").classList.add("hidden");
+  };
+  document.head.appendChild(script);
 }
 
 function usarCatalogoFallback() {
