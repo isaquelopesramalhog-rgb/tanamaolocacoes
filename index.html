@@ -238,79 +238,59 @@ var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyrUV8K9Bu9rw-SU9mWpM6
 var PRECO_CHUR = 150;
 var DESCONTOS = {"AMIGO10":10,"FIDELIDADE15":15,"PROMO20":20};
 
-// Catalogo fallback
-var ITENS_FALLBACK = [
-  {id:"s1",nome:"Caixa Ativa 15\"",cat:"Som",preco:80,unidade:"por cx/dia"},
-  {id:"s2",nome:"Kit Som Completo",cat:"Som",preco:280,unidade:"kit/dia"},
-  {id:"s3",nome:"Mesa de Som 12 Ch.",cat:"Som",preco:60,unidade:"por dia"},
-  {id:"s4",nome:"Microfone c/ Fio",cat:"Som",preco:20,unidade:"por unid/dia"},
-  {id:"s5",nome:"Microfone Sem Fio",cat:"Som",preco:30,unidade:"por unid/dia"},
-  {id:"s6",nome:"Subwoofer 18\"",cat:"Som",preco:70,unidade:"por unid/dia"},
-  {id:"i1",nome:"Kit LED (6 ref.)",cat:"Iluminação",preco:120,unidade:"kit/dia"},
-  {id:"i2",nome:"Moving Head Beam",cat:"Iluminação",preco:80,unidade:"por unid/dia"},
-  {id:"i3",nome:"Strobo LED",cat:"Iluminação",preco:30,unidade:"por unid/dia"},
-  {id:"i4",nome:"Maq. de Fumaca",cat:"Iluminação",preco:50,unidade:"por dia"},
-  {id:"i5",nome:"Controlador DMX",cat:"Iluminação",preco:40,unidade:"por dia"},
-  {id:"m1",nome:"Mesa Plast. 1,80m",cat:"Mesas",preco:15,unidade:"por unid/dia"},
-  {id:"m2",nome:"Mesa Redonda",cat:"Mesas",preco:12,unidade:"por unid/dia"},
-  {id:"m3",nome:"Cadeira Plastica",cat:"Cadeiras",preco:3,unidade:"por unid/dia"},
-  {id:"m4",nome:"Cadeira c/ Braco",cat:"Cadeiras",preco:5,unidade:"por unid/dia"},
-  {id:"m5",nome:"Toalha de Mesa",cat:"Mesas",preco:8,unidade:"por unid/dia"},
-  {id:"f1",nome:"Gerador 5kVA",cat:"Ferramentas",preco:200,unidade:"por dia"},
-  {id:"f2",nome:"Tenda 3x3",cat:"Ferramentas",preco:120,unidade:"por unid/dia"},
-  {id:"f3",nome:"Extensao 20m",cat:"Ferramentas",preco:15,unidade:"por unid/dia"}
-];
-
-var CAT_GRID = {
-  "Som":"g-som","Iluminacao":"g-ilu","Iluminação":"g-ilu",
-  "Mesas":"g-mov","Cadeiras":"g-mov","Ferramentas":"g-fer",
-  "Churrasqueiro":"g-fer","Servico":"g-fer","Serviço":"g-fer","Outros":"g-fer"
+var ITENS = {
+  "g-som": [
+    {id:"s1",nome:'Caixa Ativa 15"',preco:80,unidade:"por cx/dia"},
+    {id:"s2",nome:"Kit Som Completo",preco:280,unidade:"kit/dia"},
+    {id:"s3",nome:"Mesa de Som 12 Ch.",preco:60,unidade:"por dia"},
+    {id:"s4",nome:"Microfone c/ Fio",preco:20,unidade:"por unid/dia"},
+    {id:"s5",nome:"Microfone Sem Fio",preco:30,unidade:"por unid/dia"},
+    {id:"s6",nome:'Subwoofer 18"',preco:70,unidade:"por unid/dia"}
+  ],
+  "g-ilu": [
+    {id:"i1",nome:"Kit LED (6 ref.)",preco:120,unidade:"kit/dia"},
+    {id:"i2",nome:"Moving Head Beam",preco:80,unidade:"por unid/dia"},
+    {id:"i3",nome:"Strobo LED",preco:30,unidade:"por unid/dia"},
+    {id:"i4",nome:"Maq. de Fumaca",preco:50,unidade:"por dia"},
+    {id:"i5",nome:"Controlador DMX",preco:40,unidade:"por dia"}
+  ],
+  "g-mov": [
+    {id:"m1",nome:"Mesa Plast. 1,80m",preco:15,unidade:"por unid/dia"},
+    {id:"m2",nome:"Mesa Redonda",preco:12,unidade:"por unid/dia"},
+    {id:"m3",nome:"Cadeira Plastica",preco:3,unidade:"por unid/dia"},
+    {id:"m4",nome:"Cadeira c/ Braco",preco:5,unidade:"por unid/dia"},
+    {id:"m5",nome:"Toalha de Mesa",preco:8,unidade:"por unid/dia"}
+  ],
+  "g-fer": [
+    {id:"f1",nome:"Gerador 5kVA",preco:200,unidade:"por dia"},
+    {id:"f2",nome:"Tenda 3x3",preco:120,unidade:"por unid/dia"},
+    {id:"f3",nome:"Extensao 20m",preco:15,unidade:"por unid/dia"}
+  ]
 };
+
+var sel = {};
+var pct = 0;
+
+function fmt(v){ return Number(v).toFixed(2).replace(".",","); }
 
 function criarCard(it, gridId) {
   var grid = document.getElementById(gridId);
-  if (!grid) return;
   var d = document.createElement("div");
   d.className = "item-card";
   d.id = "c-"+it.id;
   d.innerHTML = '<span class="ck">✓</span>' +
     '<div class="in">'+it.nome+'</div>' +
-    '<div class="ip">R$ '+fmt(it.preco)+' <span class="iu">'+(it.unidade||"")+'</span></div>' +
+    '<div class="ip">R$ '+fmt(it.preco)+' <span class="iu">'+it.unidade+'</span></div>' +
     '<div class="qty-row"><span class="ql">Qtd:</span>' +
-    '<button class="qb" onclick="chq(''+it.id+'',-1,event)">−</button>' +
+    '<button class="qb" onclick="chq(\''+it.id+'\',-1,event)">−</button>' +
     '<span class="qd" id="q-'+it.id+'">1</span>' +
-    '<button class="qb" onclick="chq(''+it.id+'',1,event)">+</button></div>';
+    '<button class="qb" onclick="chq(\''+it.id+'\',1,event)">+</button></div>';
   d.onclick = function(e){ if(e.target.className==="qb") return; toggle(it); };
   grid.appendChild(d);
 }
 
-function renderItens(lista) {
-  ["g-som","g-ilu","g-mov","g-fer"].forEach(function(id){
-    var g = document.getElementById(id); if(g) g.innerHTML = "";
-  });
-  lista.forEach(function(it){
-    var gridId = CAT_GRID[it.cat] || "g-fer";
-    criarCard(it, gridId);
-  });
-}
-
-function carregarItens() {
-  if (!SCRIPT_URL) { renderItens(ITENS_FALLBACK); return; }
-  renderItens(ITENS_FALLBACK);  // Mostra fallback imediatamente
-  var timer = setTimeout(function(){ }, 10000);
-  window._cbItens = function(data) {
-    clearTimeout(timer);
-    if (data.ok && data.itens && data.itens.length > 0) {
-      sel = {}; renderItens(data.itens);
-    }
-  };
-  var s = document.createElement("script");
-  s.src = SCRIPT_URL + "?callback=_cbItens";
-  s.onerror = function(){ clearTimeout(timer); renderItens(ITENS_FALLBACK); };
-  document.head.appendChild(s);
-}
-
-window.addEventListener("DOMContentLoaded", function(){ carregarItens(); });
+Object.keys(ITENS).forEach(function(gridId){
+  ITENS[gridId].forEach(function(it){ criarCard(it, gridId); });
 });
 
 function toggle(it) {
