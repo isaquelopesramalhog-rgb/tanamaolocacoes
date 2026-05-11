@@ -234,7 +234,7 @@ input:checked+.slider:before{transform:translateX(20px)}
 
 <script>
 var WPP = "556199696902";
-var SCRIPT_URL = "COLE_AQUI_A_URL_DO_APPS_SCRIPT";
+var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyrUV8K9Bu9rw-SU9mWpM6vbpUbLmF-uK-1AXHABc1ZT0lca0hOu4MNaYfXN8xAC7k/exec";
 var PRECO_CHUR = 150;
 var DESCONTOS = {"AMIGO10":10,"FIDELIDADE15":15,"PROMO20":20};
 
@@ -344,7 +344,7 @@ function calcDesc() {
 }
 
 function salvarNaPlanilha(dados) {
-  if (!SCRIPT_URL || SCRIPT_URL === "COLE_AQUI_A_URL_DO_APPS_SCRIPT") return;
+  if (!SCRIPT_URL || SCRIPT_URL === "https://script.google.com/macros/s/AKfycbyrUV8K9Bu9rw-SU9mWpM6vbpUbLmF-uK-1AXHABc1ZT0lca0hOu4MNaYfXN8xAC7k/exec") return;
   try {
     window._cbSalvar = function(r) {
       if (r.ok) console.log("Salvo na linha " + r.linha);
