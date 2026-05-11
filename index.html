@@ -350,8 +350,13 @@ function salvarNaPlanilha(dados) {
       if (r.ok) console.log("Salvo na linha " + r.linha);
       else console.log("Erro ao salvar: " + r.erro);
     };
+    var dadosStr = encodeURIComponent(JSON.stringify(dados));
+    if (dadosStr.length > 7000) {
+      dados.obs = "";
+      dadosStr = encodeURIComponent(JSON.stringify(dados));
+    }
     var s = document.createElement("script");
-    s.src = SCRIPT_URL + "?action=salvar&callback=_cbSalvar&dados=" + encodeURIComponent(JSON.stringify(dados));
+    s.src = SCRIPT_URL + "?action=salvar&callback=_cbSalvar&dados=" + dadosStr;
     document.head.appendChild(s);
   } catch(e) { console.log("Erro:", e); }
 }
@@ -379,7 +384,7 @@ function enviar() {
     hf: document.getElementById("hf").value,
     local: local, cidade: document.getElementById("cidade").value,
     pessoas: document.getElementById("pessoas").value,
-    itens: Object.values(sel).map(function(o){return o.it.nome+" x"+o.qty;}).join(", ") + (chur ? ", Churrasqueiro x"+qtdC : ""),
+    itens: (Object.values(sel).map(function(o){return o.it.nome+" x"+o.qty;}).join(", ") + (chur ? ", Churrasqueiro x"+qtdC : "")).substring(0, 200),
     chur: chur, desconto: dv.toFixed(2), total: total.toFixed(2),
     pgto: document.getElementById("pgto").value,
     obs: document.getElementById("obs").value
