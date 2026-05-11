@@ -310,7 +310,7 @@ function carregarItens() {
   document.head.appendChild(s);
 }
 
-carregarItens();
+window.addEventListener("DOMContentLoaded", function(){ carregarItens(); });
 });
 
 function toggle(it) {
