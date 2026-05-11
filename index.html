@@ -296,11 +296,13 @@ function renderItens(lista) {
 
 function carregarItens() {
   if (!SCRIPT_URL) { renderItens(ITENS_FALLBACK); return; }
-  var timer = setTimeout(function(){ renderItens(ITENS_FALLBACK); }, 6000);
+  renderItens(ITENS_FALLBACK);  // Mostra fallback imediatamente
+  var timer = setTimeout(function(){ }, 10000);
   window._cbItens = function(data) {
     clearTimeout(timer);
-    if (data.ok && data.itens && data.itens.length > 0) renderItens(data.itens);
-    else renderItens(ITENS_FALLBACK);
+    if (data.ok && data.itens && data.itens.length > 0) {
+      sel = {}; renderItens(data.itens);
+    }
   };
   var s = document.createElement("script");
   s.src = SCRIPT_URL + "?callback=_cbItens";
