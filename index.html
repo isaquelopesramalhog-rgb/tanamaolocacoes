@@ -295,7 +295,7 @@ let pct = 0;
 
 // ── CARREGAR DA PLANILHA (JSONP) ────────────────────────────
 function carregar() {
-  if (!CFG.URL || CFG.URL === "https://script.google.com/macros/s/AKfycbyrUV8K9Bu9rw-SU9mWpM6vbpUbLmF-uK-1AXHABc1ZT0lca0hOu4MNaYfXN8xAC7k/exec") {
+ if (!CFG.URL) { {
     fallback(); render(); hide();
     badge(false, "URL não configurada — usando catálogo padrão"); return;
   }
