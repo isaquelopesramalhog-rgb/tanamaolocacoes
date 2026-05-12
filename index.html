@@ -410,7 +410,8 @@ function enviar() {
     itensDetalhados: Object.values(sel).map(function(o){return {nome:o.it.nome,qty:o.qty};}),
     chur: chur, desconto: dv.toFixed(2), total: total.toFixed(2),
     pgto: document.getElementById("pgto").value,
-    obs: document.getElementById("obs").value
+    obs: document.getElementById("obs").value,
+    tipo: document.getElementById("tipo").value
   };
   salvarNaPlanilha(dadosPlanilha);
 
