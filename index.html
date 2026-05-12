@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tá na Mão Locações — Orçamento</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/isaquelopesramalhog-rgb/tanamaolocacoes/main/WhatsApp%20Image%202026-05-08%20at%2019.10.48.jpeg">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Poppins',sans-serif;background:#1a1a1a;color:#222;min-height:100vh}
@@ -83,6 +84,8 @@ input:checked+.slider:before{transform:translateX(20px)}
 .combo-card.ativo .combo-preco{color:#111}
 @media(max-width:480px){.combos-grid{grid-template-columns:1fr}}
 @media(max-width:680px){.layout{flex-direction:column}.cart-col{width:100%;position:static;padding:0 16px 16px}.item-grid{grid-template-columns:1fr 1fr}.row2{grid-template-columns:1fr}}
+@media print{body > *{display:none!important}#print-orcamento{display:block!important}}
+#print-orcamento{display:none}
 @media print{.no-print{display:none!important}body{background:#fff}.header{position:static;background:#fff;color:#000;border-bottom:2px solid #000}.header h1{color:#000}}
 </style>
 </head>
@@ -246,7 +249,7 @@ input:checked+.slider:before{transform:translateX(20px)}
     <h2>Orçamento gerado!</h2>
     <p id="modal-txt"></p>
     <a class="btn-wpp" id="btn-wpp" href="#" target="_blank">📱 Enviar pelo WhatsApp</a>
-    <button class="btn-sec" onclick="window.print()">🖨️ Baixar PDF</button>
+    <button class="btn-sec" onclick="gerarPDF()">🖨️ Baixar PDF</button>
     <button class="btn-sec" onclick="fechar()">🔄 Novo orçamento</button>
   </div>
 </div>
@@ -520,6 +523,104 @@ function selecionarCombo(combo){
 }
 
 renderCombos();
+</script>
+<div id="print-orcamento">
+<style>
+  #print-orcamento{font-family:Arial,sans-serif;padding:32px;max-width:680px;margin:0 auto;color:#111}
+  #print-orcamento .po-header{text-align:center;border-bottom:3px solid #FFD600;padding-bottom:16px;margin-bottom:20px}
+  #print-orcamento .po-header img{height:90px;object-fit:contain}
+  #print-orcamento .po-header h2{font-size:1.1rem;font-weight:700;margin-top:6px;text-transform:uppercase;letter-spacing:2px}
+  #print-orcamento .po-num{font-size:.72rem;color:#999;margin-top:4px}
+  #print-orcamento .po-section{margin-bottom:16px}
+  #print-orcamento .po-section h3{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;border-bottom:1px solid #eee;padding-bottom:4px;margin-bottom:8px}
+  #print-orcamento .po-row{display:flex;justify-content:space-between;font-size:.88rem;padding:4px 0;border-bottom:1px solid #f5f5f5}
+  #print-orcamento .po-row .label{color:#555}
+  #print-orcamento .po-row .value{font-weight:600}
+  #print-orcamento .po-item{display:flex;justify-content:space-between;font-size:.88rem;padding:5px 0;border-bottom:1px solid #f5f5f5}
+  #print-orcamento .po-total{display:flex;justify-content:space-between;font-size:1.1rem;font-weight:700;padding:12px 0;border-top:3px solid #FFD600;margin-top:8px}
+  #print-orcamento .po-footer{text-align:center;font-size:.72rem;color:#aaa;margin-top:24px;border-top:1px solid #eee;padding-top:12px}
+</style>
+<div class="po-header">
+  <img src="https://raw.githubusercontent.com/isaquelopesramalhog-rgb/tanamaolocacoes/main/WhatsApp%20Image%202026-05-08%20at%2019.10.48.jpeg" alt="Ta na Mao Locacoes">
+  <h2>Orcamento</h2>
+  <div class="po-num" id="po-num"></div>
+</div>
+<div class="po-section">
+  <h3>Dados do Cliente</h3>
+  <div class="po-row"><span class="label">Nome</span><span class="value" id="po-nome"></span></div>
+  <div class="po-row"><span class="label">WhatsApp</span><span class="value" id="po-tel"></span></div>
+  <div class="po-row"><span class="label">E-mail</span><span class="value" id="po-email"></span></div>
+</div>
+<div class="po-section">
+  <h3>Dados do Evento</h3>
+  <div class="po-row"><span class="label">Data</span><span class="value" id="po-data"></span></div>
+  <div class="po-row"><span class="label">Horario</span><span class="value" id="po-hora"></span></div>
+  <div class="po-row"><span class="label">Local</span><span class="value" id="po-local"></span></div>
+  <div class="po-row"><span class="label">Cidade</span><span class="value" id="po-cidade"></span></div>
+  <div class="po-row"><span class="label">Tipo de Evento</span><span class="value" id="po-tipo"></span></div>
+</div>
+<div class="po-section">
+  <h3>Itens Locados</h3>
+  <div id="po-itens"></div>
+</div>
+<div id="po-desc-row" style="display:none" class="po-section">
+  <div class="po-row"><span class="label">Subtotal</span><span class="value" id="po-subtotal"></span></div>
+  <div class="po-row"><span class="label" id="po-desc-label">Desconto</span><span class="value" id="po-desc-val"></span></div>
+</div>
+<div class="po-total"><span>TOTAL</span><span id="po-total"></span></div>
+<div class="po-section" style="margin-top:12px">
+  <div class="po-row"><span class="label">Forma de Pagamento</span><span class="value" id="po-pgto"></span></div>
+  <div id="po-obs-row" style="display:none" class="po-row"><span class="label">Observacoes</span><span class="value" id="po-obs"></span></div>
+</div>
+<div class="po-footer">
+  <strong>Ta na Mao Locacoes</strong> — O que voce precisa, na hora certa.<br>
+  WhatsApp: (61) 99696-902 | @eu.isaqueramalho<br>
+  <em>Orcamento sujeito a confirmacao de disponibilidade.</em>
+</div>
+</div>
+
+<script>
+function gerarPDF(){
+  var nome=document.getElementById("nome").value;
+  var tel=document.getElementById("tel").value;
+  var data=document.getElementById("data").value;
+  var pts=data.split("-"), dataFmt=pts[2]+"/"+pts[1]+"/"+pts[0];
+  var hi=document.getElementById("hi").value;
+  var hf=document.getElementById("hf").value;
+  var hora=(hi&&hf)?hi+" as "+hf:(hi||hf||"Nao informado");
+  document.getElementById("po-num").textContent="Gerado em: "+new Date().toLocaleDateString("pt-BR")+" as "+new Date().toLocaleTimeString("pt-BR");
+  document.getElementById("po-nome").textContent=nome;
+  document.getElementById("po-tel").textContent=tel;
+  document.getElementById("po-email").textContent=document.getElementById("email").value||"-";
+  document.getElementById("po-data").textContent=dataFmt;
+  document.getElementById("po-hora").textContent=hora;
+  document.getElementById("po-local").textContent=document.getElementById("local").value;
+  document.getElementById("po-cidade").textContent=document.getElementById("cidade").value||"-";
+  document.getElementById("po-tipo").textContent=document.getElementById("tipo").value||"-";
+  document.getElementById("po-pgto").textContent=document.getElementById("pgto").value;
+  var raw=0, itensHtml="";
+  Object.values(sel).forEach(function(o){
+    var sub=o.it.preco*o.qty; raw+=sub;
+    itensHtml+='<div class="po-item"><span>'+o.it.nome+' <span style="color:#888;font-size:.75rem">x '+o.qty+'</span></span><span>R$ '+fmt(sub)+'</span></div>';
+  });
+  var chur=document.getElementById("chur").checked;
+  var qtdC=parseInt(document.getElementById("qtd-chur").value||1);
+  if(chur){var sc=PRECO_CHUR*qtdC;raw+=sc;itensHtml+='<div class="po-item"><span>Churrasqueiro <span style="color:#888;font-size:.75rem">x '+qtdC+'</span></span><span>R$ '+fmt(sc)+'</span></div>';}
+  document.getElementById("po-itens").innerHTML=itensHtml;
+  var dv=raw*pct/100, total=raw-dv;
+  if(pct>0){
+    document.getElementById("po-desc-row").style.display="block";
+    document.getElementById("po-subtotal").textContent="R$ "+fmt(raw);
+    document.getElementById("po-desc-label").textContent="Desconto ("+pct+"%)";
+    document.getElementById("po-desc-val").textContent="- R$ "+fmt(dv);
+  } else { document.getElementById("po-desc-row").style.display="none"; }
+  document.getElementById("po-total").textContent="R$ "+fmt(total);
+  var obs=document.getElementById("obs").value;
+  if(obs){document.getElementById("po-obs-row").style.display="flex";document.getElementById("po-obs").textContent=obs;}
+  else{document.getElementById("po-obs-row").style.display="none";}
+  document.getElementById("modal").classList.remove("open");
+  setTimeout(function(){ window.print(); }, 300);
+}
 </script>
 </body>
 </html>
