@@ -72,6 +72,16 @@ input:checked+.slider:before{transform:translateX(20px)}
 .btn-wpp{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:#25d366;color:#fff;border:none;border-radius:9px;font-size:.92rem;font-weight:700;cursor:pointer;text-decoration:none;margin-bottom:10px}
 .btn-sec{width:100%;padding:10px;background:#222;color:#aaa;border:1px solid #333;border-radius:9px;font-size:.85rem;cursor:pointer;margin-bottom:6px}
 .req{color:#FFD600}
+.combos-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.combo-card{border:2px solid #FFD600;border-radius:10px;padding:12px;cursor:pointer;background:#fff;transition:background .15s,transform .1s;text-align:center;user-select:none}
+.combo-card:hover{background:#fffde7;transform:scale(1.02)}
+.combo-card.ativo{background:#FFD600}
+.combo-card .combo-nome{font-size:.82rem;font-weight:700;color:#111}
+.combo-card .combo-desc{font-size:.68rem;color:#666;margin-top:3px}
+.combo-card .combo-preco{font-size:.82rem;font-weight:700;color:#E8671A;margin-top:4px}
+.combo-card.ativo .combo-desc{color:#333}
+.combo-card.ativo .combo-preco{color:#111}
+@media(max-width:480px){.combos-grid{grid-template-columns:1fr}}
 @media(max-width:680px){.layout{flex-direction:column}.cart-col{width:100%;position:static;padding:0 16px 16px}.item-grid{grid-template-columns:1fr 1fr}.row2{grid-template-columns:1fr}}
 @media print{.no-print{display:none!important}body{background:#fff}.header{position:static;background:#fff;color:#000;border-bottom:2px solid #000}.header h1{color:#000}}
 </style>
@@ -122,6 +132,15 @@ input:checked+.slider:before{transform:translateX(20px)}
         <div><label class="fl">Cidade</label><input type="text" id="cidade" placeholder="Sua cidade"></div>
         <div><label class="fl">Nº de pessoas (est.)</label><input type="number" id="pessoas" placeholder="ex: 80" min="1"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- COMBOS -->
+  <div class="section">
+    <div class="section-title">🎁 Combos Prontos</div>
+    <div class="section-body">
+      <p style="font-size:.75rem;color:#888;margin-bottom:10px">Clique em um combo para selecionar os itens automaticamente. Você pode ajustar depois!</p>
+      <div class="combos-grid" id="combos-grid"></div>
     </div>
   </div>
 
@@ -264,7 +283,12 @@ var ITENS = {
   "g-fer": [
     {id:"f1",nome:"Gerador 5kVA",preco:200,unidade:"por dia"},
     {id:"f2",nome:"Cobertura (Tendas 3x3)",preco:120,unidade:"por unid/dia"},
-    {id:"f3",nome:"Extensao Eletrica 20m",preco:15,unidade:"por unid/dia"}
+    {id:"f3",nome:"Extensao Eletrica 20m",preco:15,unidade:"por unid/dia"},
+    {id:"f4",nome:"Pedestal",preco:10,unidade:"por unid/dia"},
+    {id:"f5",nome:"TV 50 polegadas",preco:150,unidade:"por dia"},
+    {id:"f6",nome:"Projetor",preco:200,unidade:"por dia"},
+    {id:"f7",nome:"Caixa Termica Pequena",preco:30,unidade:"por unid/dia"},
+    {id:"f8",nome:"Caixa Termica 360L",preco:80,unidade:"por dia"}
   ]
 };
 
@@ -419,6 +443,83 @@ function fechar(){
   document.getElementById("msg-desc").style.display="none";
   atualizar(); window.scrollTo(0,0);
 }
+
+var COMBOS = [
+  {id:"brasa-beats",nome:"Brasa & Beats",emoji:"🔥🎵",desc:"Churrasco + Música",itens:["Kit Som Completo (3 caixas+mesa)","Microfone com Fio","Kit Iluminacao LED (6 refletores)","Mesa Plastica 1,80m","Cadeira Plastica Empilhavel","Toalha de Mesa Branca"],chur:true},
+  {id:"so-chegar",nome:"Só Chegar e Curtir",emoji:"🎉",desc:"Tudo incluso, é só chegar",itens:["Kit Som Completo (3 caixas+mesa)","Kit Iluminacao LED (6 refletores)","Moving Head Beam","Maquina de Fumaca","Mesa Plastica 1,80m","Cadeira Plastica Empilhavel","Toalha de Mesa Branca"],chur:true},
+  {id:"evidencias",nome:"Evidências",emoji:"🎤",desc:"Karaokê & Show",itens:["Caixa de Som Ativa 15","Microfone com Fio","Microfone Sem Fio","Kit Iluminacao LED (6 refletores)","Pedestal"],chur:false},
+  {id:"revoada",nome:"Revoada",emoji:"🚀",desc:"Festa grande e badalada",itens:["Kit Som Completo (3 caixas+mesa)","Subwoofer 18","Kit Iluminacao LED (6 refletores)","Moving Head Beam","Maquina de Fumaca","Strobo LED","Mesa Plastica 1,80m"],chur:false},
+  {id:"resenha",nome:"Resenha",emoji:"🍺",desc:"Encontro casual e animado",itens:["Caixa de Som Ativa 15","Mesa Plastica 1,80m","Cadeira Plastica Empilhavel","Kit Iluminacao LED (6 refletores)","Toalha de Mesa Branca"],chur:false},
+  {id:"frevo",nome:"Frevo",emoji:"🥁",desc:"Forró e muita animação",itens:["Caixa de Som Ativa 15","Strobo LED","Kit Iluminacao LED (6 refletores)","Caixa Termica Pequena"],chur:false},
+  {id:"tbt",nome:"TBT",emoji:"📼",desc:"Festa temática e nostálgica",itens:["Kit Som Completo (3 caixas+mesa)","Strobo LED","Kit Iluminacao LED (6 refletores)","Maquina de Fumaca","Mesa Plastica 1,80m","Cadeira Plastica Empilhavel"],chur:false},
+  {id:"happy-hour",nome:"Happy Hour",emoji:"🥂",desc:"Corporativo e descontraído",itens:["Caixa de Som Ativa 15","Mesa Plastica 1,80m","Cadeira Plastica Empilhavel","Toalha de Mesa Branca","Kit Iluminacao LED (6 refletores)","Extensao Eletrica 20m"],chur:false}
+];
+var comboAtivo = null;
+
+function calcPrecoCombo(combo){
+  var total=0;
+  combo.itens.forEach(function(nomeItem){
+    Object.values(ITENS).forEach(function(lista){
+      lista.forEach(function(it){ if(it.nome===nomeItem) total+=it.preco; });
+    });
+  });
+  if(combo.chur) total+=PRECO_CHUR;
+  return total;
+}
+
+function renderCombos(){
+  var grid=document.getElementById("combos-grid");
+  if(!grid) return;
+  grid.innerHTML="";
+  COMBOS.forEach(function(combo){
+    var preco=calcPrecoCombo(combo);
+    var d=document.createElement("div");
+    d.className="combo-card"; d.id="combo-"+combo.id;
+    d.innerHTML='<div class="combo-nome">'+combo.emoji+' '+combo.nome+'</div>'+
+      '<div class="combo-desc">'+combo.desc+'</div>'+
+      '<div class="combo-preco">A partir de R$ '+fmt(preco)+'</div>';
+    d.onclick=function(){ selecionarCombo(combo); };
+    grid.appendChild(d);
+  });
+}
+
+function selecionarCombo(combo){
+  if(comboAtivo){
+    var ant=document.getElementById("combo-"+comboAtivo);
+    if(ant) ant.classList.remove("ativo");
+  }
+  if(comboAtivo===combo.id){
+    comboAtivo=null;
+    sel={};
+    document.querySelectorAll(".item-card.selected").forEach(function(c){c.classList.remove("selected");});
+    document.querySelectorAll(".qd").forEach(function(e){e.textContent="1";});
+    document.getElementById("chur").checked=false;
+    document.getElementById("chur-detail").className="chur-detail";
+    atualizar(); return;
+  }
+  comboAtivo=combo.id;
+  var card=document.getElementById("combo-"+combo.id);
+  if(card) card.classList.add("ativo");
+  sel={};
+  document.querySelectorAll(".item-card.selected").forEach(function(c){c.classList.remove("selected");});
+  document.querySelectorAll(".qd").forEach(function(e){e.textContent="1";});
+  combo.itens.forEach(function(nomeItem){
+    Object.values(ITENS).forEach(function(lista){
+      lista.forEach(function(it){
+        if(it.nome===nomeItem){
+          sel[it.id]={it:it,qty:1};
+          var c=document.getElementById("c-"+it.id);
+          if(c) c.classList.add("selected");
+        }
+      });
+    });
+  });
+  document.getElementById("chur").checked=combo.chur;
+  document.getElementById("chur-detail").className="chur-detail"+(combo.chur?" visible":"");
+  atualizar();
+}
+
+renderCombos();
 </script>
 </body>
 </html>
