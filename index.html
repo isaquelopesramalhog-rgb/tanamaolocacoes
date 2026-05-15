@@ -6,6 +6,7 @@
 <title>Tá na Mão Locações — Orçamento</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/isaquelopesramalhog-rgb/tanamaolocacoes/main/favicon.png">
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCXFO5o7u7bk7J_wL238SV3N7vtj2jqop8&libraries=places"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Poppins',sans-serif;background:#1a1a1a;color:#222;min-height:100vh}
@@ -14,7 +15,7 @@ body{font-family:'Poppins',sans-serif;background:#1a1a1a;color:#222;min-height:1
 .layout{display:flex;max-width:1000px;margin:0 auto;align-items:flex-start}
 .form-col{flex:1 1 0;padding:16px;min-width:0}
 .cart-col{width:280px;flex-shrink:0;padding:16px;position:sticky;top:68px}
-.section{background:#fff;border-radius:10px;margin-bottom:12px;overflow:hidden;border:2px solid #e0e0e0}
+.section{background:#fff;border-radius:10px;margin-bottom:12px;overflow:visible;border:2px solid #e0e0e0}
 .section-title{background:#111;color:#FFD600;font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:9px 14px}
 .section-body{padding:14px}
 label.fl{display:block;font-size:.72rem;font-weight:700;color:#555;margin-bottom:4px;margin-top:10px}
@@ -73,7 +74,13 @@ input:checked+.slider:before{transform:translateX(20px)}
 .btn-wpp{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:#25d366;color:#fff;border:none;border-radius:9px;font-size:.92rem;font-weight:700;cursor:pointer;text-decoration:none;margin-bottom:10px}
 .btn-sec{width:100%;padding:10px;background:#222;color:#aaa;border:1px solid #333;border-radius:9px;font-size:.85rem;cursor:pointer;margin-bottom:6px}
 .req{color:#FFD600}
-.combos-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.frete-box{background:#f9f9f9;border:1.5px solid #FFD600;border-radius:8px;padding:10px 12px;margin-top:8px;display:none}
+.frete-box.visivel{display:block}
+.frete-info{font-size:.78rem;color:#333;display:flex;justify-content:space-between;align-items:center}
+.frete-valor{font-weight:700;color:#E8671A;font-size:.9rem}
+.frete-detalhe{font-size:.68rem;color:#888;margin-top:2px}
+.frete-loading{font-size:.75rem;color:#888;text-align:center;padding:4px 0}
+.combos-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;overflow:visible}
 .combo-card{border:2px solid #FFD600;border-radius:10px;padding:12px;cursor:pointer;background:#fff;transition:background .15s,transform .1s;text-align:center;user-select:none}
 .combo-card:hover{background:#fffde7;transform:scale(1.02)}
 .combo-card.ativo{background:#FFD600}
@@ -83,6 +90,11 @@ input:checked+.slider:before{transform:translateX(20px)}
 .combo-card.ativo .combo-desc{color:#333}
 .combo-card.ativo .combo-preco{color:#111}
 @media(max-width:480px){.combos-grid{grid-template-columns:1fr}}
+.combo-itens{margin-top:6px;text-align:left;border-top:1px solid #e0e0e0;padding-top:6px}
+.combo-item-linha{font-size:.65rem;color:#555;padding:1px 0}
+.combo-card.ativo .combo-item-linha{color:#333}
+.combo-item-chur{font-size:.65rem;color:#E8671A;padding:1px 0;font-weight:600}
+.combo-card.ativo .combo-item-chur{color:#111}
 @media(max-width:680px){.layout{flex-direction:column}.cart-col{width:100%;position:static;padding:0 16px 16px}.item-grid{grid-template-columns:1fr 1fr}.row2{grid-template-columns:1fr}}
 @media print{body > *{display:none!important}#print-orcamento{display:block!important}}
 #print-orcamento{display:none}
@@ -130,7 +142,17 @@ input:checked+.slider:before{transform:translateX(20px)}
         <div><label class="fl">Término</label><input type="time" id="hf"></div>
       </div>
       <label class="fl">Local / Endereço <span class="req">*</span></label>
-      <input type="text" id="local" placeholder="Rua, número, bairro">
+      <input type="text" id="local" placeholder="Rua, número, bairro" oninput="debounceCalcFrete()">
+      <div class="frete-box" id="frete-box">
+        <div class="frete-loading" id="frete-loading">📍 Calculando frete...</div>
+        <div id="frete-resultado" style="display:none">
+          <div class="frete-info">
+            <span>🚚 Frete estimado</span>
+            <span class="frete-valor" id="frete-valor">R$ 0,00</span>
+          </div>
+          <div class="frete-detalhe" id="frete-detalhe"></div>
+        </div>
+      </div>
       <div class="row2">
         <div><label class="fl">Cidade</label><input type="text" id="cidade" placeholder="Sua cidade"></div>
         <div><label class="fl">Nº de pessoas (est.)</label><input type="number" id="pessoas" placeholder="ex: 80" min="1"></div>
@@ -297,6 +319,60 @@ var ITENS = {
 
 var sel = {};
 var pct = 0;
+var freteValor = 0;
+var freteTimer = null;
+
+var ORIGEM = "Quadra 7 Casa 79 Setor Oeste, Gama, DF, Brasil";
+var PRECO_KM = 3.00;
+var FRETE_MINIMO = 40.00;
+
+function debounceCalcFrete() {
+  clearTimeout(freteTimer);
+  freteTimer = setTimeout(calcFrete, 1200);
+}
+
+function calcFrete() {
+  var local = document.getElementById("local").value.trim();
+  var cidade = document.getElementById("cidade").value.trim();
+  if (local.length < 8) {
+    document.getElementById("frete-box").classList.remove("visivel");
+    freteValor = 0;
+    return;
+  }
+
+  var destino = local + (cidade ? ", " + cidade : "") + ", Brasil";
+  document.getElementById("frete-box").classList.add("visivel");
+  document.getElementById("frete-loading").style.display = "block";
+  document.getElementById("frete-resultado").style.display = "none";
+
+  var service = new google.maps.DistanceMatrixService();
+  service.getDistanceMatrix({
+    origins: [ORIGEM],
+    destinations: [destino],
+    travelMode: google.maps.TravelMode.DRIVING,
+    unitSystem: google.maps.UnitSystem.METRIC,
+  }, function(resp, status) {
+    document.getElementById("frete-loading").style.display = "none";
+    document.getElementById("frete-resultado").style.display = "block";
+
+    if (status === "OK" && resp.rows[0].elements[0].status === "OK") {
+      var distM = resp.rows[0].elements[0].distance.value;
+      var distKm = distM / 1000;
+      var calc = distKm * PRECO_KM;
+      freteValor = Math.max(calc, FRETE_MINIMO);
+
+      document.getElementById("frete-valor").textContent = "R$ " + fmt(freteValor);
+      document.getElementById("frete-detalhe").textContent =
+        distKm.toFixed(1) + " km × R$ " + fmt(PRECO_KM) + "/km" +
+        (calc < FRETE_MINIMO ? " (mínimo R$ " + fmt(FRETE_MINIMO) + ")" : "");
+    } else {
+      freteValor = 0;
+      document.getElementById("frete-valor").textContent = "Não calculado";
+      document.getElementById("frete-detalhe").textContent = "Endereço não encontrado — frete a combinar";
+    }
+    atualizar();
+  });
+}
 
 function fmt(v){ return Number(v).toFixed(2).replace(".",","); }
 
@@ -349,6 +425,7 @@ function atualizar() {
       html+='<div class="cl"><div><div class="cn">'+it.nome+'</div><div class="cd">R$ '+fmt(it.preco)+' x '+qty+'</div></div><div class="cv">R$ '+fmt(sub)+'</div></div>';
     });
     if(chur){ var s=PRECO_CHUR*qtdC; total+=s; html+='<div class="cl"><div><div class="cn">Churrasqueiro</div><div class="cd">R$ '+fmt(PRECO_CHUR)+' x '+qtdC+'</div></div><div class="cv">R$ '+fmt(s)+'</div></div>'; }
+    if(freteValor>0){ total+=freteValor; html+='<div class="cl"><div><div class="cn">🚚 Frete</div><div class="cd">Entrega e retirada</div></div><div class="cv">R$ '+fmt(freteValor)+'</div></div>'; }
   }
   document.getElementById("cart-body").innerHTML = html;
   document.getElementById("cart-total").textContent = "R$ "+fmt(total);
@@ -411,7 +488,8 @@ function enviar() {
     chur: chur, desconto: dv.toFixed(2), total: total.toFixed(2),
     pgto: document.getElementById("pgto").value,
     obs: document.getElementById("obs").value,
-    tipo: document.getElementById("tipo").value
+    tipo: document.getElementById("tipo").value,
+    frete: freteValor.toFixed(2)
   };
   salvarNaPlanilha(dadosPlanilha);
 
@@ -423,7 +501,8 @@ function enviar() {
   msg+="\n\nItens:\n";
   Object.values(sel).forEach(function(o){msg+="- "+o.it.nome+" (x"+o.qty+") - R$ "+fmt(o.it.preco*o.qty)+"\n";});
   if(chur) msg+="- Churrasqueiro (x"+qtdC+") - R$ "+fmt(PRECO_CHUR*qtdC)+"\n";
-  msg+="\nSubtotal: R$ "+fmt(raw)+"\n";
+  if(freteValor>0) msg+="- Frete (entrega e retirada) - R$ "+fmt(freteValor)+"\n";
+  msg+="\nSubtotal: R$ "+fmt(raw+freteValor)+"\n";
   if(pct>0) msg+="Desconto ("+pct+"%): - R$ "+fmt(dv)+"\nTOTAL FINAL: R$ "+fmt(total)+"\n";
   else msg+="TOTAL: R$ "+fmt(raw)+"\n";
   var obs=document.getElementById("obs").value;
@@ -479,9 +558,13 @@ function renderCombos(){
     var preco=calcPrecoCombo(combo);
     var d=document.createElement("div");
     d.className="combo-card"; d.id="combo-"+combo.id;
+    var icones={"Kit Som Completo (3 caixas+mesa)":"🔊","Caixa de Som Ativa 15":"🔊","Mesa de Som 12 Canais":"🎚️","Microfone com Fio":"🎤","Microfone Sem Fio":"🎤","Subwoofer 18":"🔊","Kit Iluminacao LED (6 refletores)":"💡","Moving Head Beam":"💡","Strobo LED":"💡","Maquina de Fumaca":"💨","Controlador DMX":"🎛️","Mesa Plastica 1,80m":"🪑","Mesa Redonda":"🪑","Cadeira Plastica Empilhavel":"🪑","Cadeira com Braco":"🪑","Toalha de Mesa Branca":"🎀","Gerador 5kVA":"⚡","Cobertura (Tendas 3x3)":"⛺","Extensao Eletrica 20m":"🔌","Pedestal":"🎙️","TV 50 polegadas":"📺","Projetor":"📽️","Caixa Termica Pequena":"🧊","Caixa Termica 360L":"🧊"};
+    var listaItens=combo.itens.map(function(n){return '<div class="combo-item-linha">'+(icones[n]||"📦")+' '+n+'</div>';}).join("");
+    if(combo.chur) listaItens+='<div class="combo-item-chur">🍖 Churrasqueiro incluído</div>';
     d.innerHTML='<div class="combo-nome">'+combo.emoji+' '+combo.nome+'</div>'+
       '<div class="combo-desc">'+combo.desc+'</div>'+
-      '<div class="combo-preco">A partir de R$ '+fmt(preco)+'</div>';
+      '<div class="combo-preco">A partir de R$ '+fmt(preco)+'</div>'+
+      '<div class="combo-itens">'+listaItens+'</div>';
     d.onclick=function(){ selecionarCombo(combo); };
     grid.appendChild(d);
   });
