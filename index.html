@@ -6,7 +6,6 @@
 <title>Tá na Mão Locações — Orçamento</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/isaquelopesramalhog-rgb/tanamaolocacoes/main/favicon.png">
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCXFO5o7u7bk7J_wL238SV3N7vtj2jqop8&libraries=places"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Poppins',sans-serif;background:#1a1a1a;color:#222;min-height:100vh}
@@ -340,58 +339,42 @@ function calcFrete() {
     return;
   }
 
-  var destino = local + (cidade ? ", " + cidade : "") + ", Brasilia, DF, Brasil";
+  var destino = local + (cidade ? ", " + cidade : "") + ", DF, Brasil";
   document.getElementById("frete-box").classList.add("visivel");
   document.getElementById("frete-loading").style.display = "block";
   document.getElementById("frete-resultado").style.display = "none";
 
-  // Geocodifica origem e destino, depois calcula distância
-  var geocoder = new google.maps.Geocoder();
-  geocoder.geocode({address: ORIGEM}, function(resO, stO) {
-    if (stO !== "OK") {
-      mostrarErroFrete(); return;
+  fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": "AIzaSyCXFO5o7u7bk7J_wL238SV3N7vtj2jqop8",
+      "X-Goog-FieldMask": "routes.distanceMeters"
+    },
+    body: JSON.stringify({
+      origin: {address: ORIGEM},
+      destination: {address: destino},
+      travelMode: "DRIVE"
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data) {
+    document.getElementById("frete-loading").style.display = "none";
+    document.getElementById("frete-resultado").style.display = "block";
+    if (data.routes && data.routes.length > 0 && data.routes[0].distanceMeters) {
+      var distKm = data.routes[0].distanceMeters / 1000;
+      var calc = distKm * PRECO_KM;
+      freteValor = Math.max(calc, FRETE_MINIMO);
+      document.getElementById("frete-valor").textContent = "R$ " + fmt(freteValor);
+      document.getElementById("frete-detalhe").textContent =
+        distKm.toFixed(1) + " km × R$ " + fmt(PRECO_KM) + "/km" +
+        (calc < FRETE_MINIMO ? " (mínimo R$ " + fmt(FRETE_MINIMO) + ")" : "");
+    } else {
+      mostrarErroFrete();
     }
-    var origemLatLng = resO[0].geometry.location;
-    geocoder.geocode({address: destino}, function(resD, stD) {
-      if (stD !== "OK") {
-        mostrarErroFrete(); return;
-      }
-      var destinoLatLng = resD[0].geometry.location;
-      // Calcula distância via Routes API
-      fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": "AIzaSyCXFO5o7u7bk7J_wL238SV3N7vtj2jqop8",
-          "X-Goog-FieldMask": "routes.distanceMeters"
-        },
-        body: JSON.stringify({
-          origin: {location:{latLng:{latitude:origemLatLng.lat(),longitude:origemLatLng.lng()}}},
-          destination: {location:{latLng:{latitude:destinoLatLng.lat(),longitude:destinoLatLng.lng()}}},
-          travelMode: "DRIVE"
-        })
-      })
-      .then(function(r){ return r.json(); })
-      .then(function(data) {
-        document.getElementById("frete-loading").style.display = "none";
-        document.getElementById("frete-resultado").style.display = "block";
-        if (data.routes && data.routes[0]) {
-          var distM = data.routes[0].distanceMeters;
-          var distKm = distM / 1000;
-          var calc = distKm * PRECO_KM;
-          freteValor = Math.max(calc, FRETE_MINIMO);
-          document.getElementById("frete-valor").textContent = "R$ " + fmt(freteValor);
-          document.getElementById("frete-detalhe").textContent =
-            distKm.toFixed(1) + " km × R$ " + fmt(PRECO_KM) + "/km" +
-            (calc < FRETE_MINIMO ? " (mínimo R$ " + fmt(FRETE_MINIMO) + ")" : "");
-        } else {
-          mostrarErroFrete();
-        }
-        atualizar();
-      })
-      .catch(function(){ mostrarErroFrete(); });
-    });
-  });
+    atualizar();
+  })
+  .catch(function(err){ mostrarErroFrete(); });
 }
 
 function mostrarErroFrete() {
