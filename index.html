@@ -340,38 +340,67 @@ function calcFrete() {
     return;
   }
 
-  var destino = local + (cidade ? ", " + cidade : "") + ", Brasil";
+  var destino = local + (cidade ? ", " + cidade : "") + ", Brasilia, DF, Brasil";
   document.getElementById("frete-box").classList.add("visivel");
   document.getElementById("frete-loading").style.display = "block";
   document.getElementById("frete-resultado").style.display = "none";
 
-  var service = new google.maps.DistanceMatrixService();
-  service.getDistanceMatrix({
-    origins: [ORIGEM],
-    destinations: [destino],
-    travelMode: google.maps.TravelMode.DRIVING,
-    unitSystem: google.maps.UnitSystem.METRIC,
-  }, function(resp, status) {
-    document.getElementById("frete-loading").style.display = "none";
-    document.getElementById("frete-resultado").style.display = "block";
-
-    if (status === "OK" && resp.rows[0].elements[0].status === "OK") {
-      var distM = resp.rows[0].elements[0].distance.value;
-      var distKm = distM / 1000;
-      var calc = distKm * PRECO_KM;
-      freteValor = Math.max(calc, FRETE_MINIMO);
-
-      document.getElementById("frete-valor").textContent = "R$ " + fmt(freteValor);
-      document.getElementById("frete-detalhe").textContent =
-        distKm.toFixed(1) + " km × R$ " + fmt(PRECO_KM) + "/km" +
-        (calc < FRETE_MINIMO ? " (mínimo R$ " + fmt(FRETE_MINIMO) + ")" : "");
-    } else {
-      freteValor = 0;
-      document.getElementById("frete-valor").textContent = "Não calculado";
-      document.getElementById("frete-detalhe").textContent = "Endereço não encontrado — frete a combinar";
+  // Geocodifica origem e destino, depois calcula distância
+  var geocoder = new google.maps.Geocoder();
+  geocoder.geocode({address: ORIGEM}, function(resO, stO) {
+    if (stO !== "OK") {
+      mostrarErroFrete(); return;
     }
-    atualizar();
+    var origemLatLng = resO[0].geometry.location;
+    geocoder.geocode({address: destino}, function(resD, stD) {
+      if (stD !== "OK") {
+        mostrarErroFrete(); return;
+      }
+      var destinoLatLng = resD[0].geometry.location;
+      // Calcula distância via Routes API
+      fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": "AIzaSyCXFO5o7u7bk7J_wL238SV3N7vtj2jqop8",
+          "X-Goog-FieldMask": "routes.distanceMeters"
+        },
+        body: JSON.stringify({
+          origin: {location:{latLng:{latitude:origemLatLng.lat(),longitude:origemLatLng.lng()}}},
+          destination: {location:{latLng:{latitude:destinoLatLng.lat(),longitude:destinoLatLng.lng()}}},
+          travelMode: "DRIVE"
+        })
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        document.getElementById("frete-loading").style.display = "none";
+        document.getElementById("frete-resultado").style.display = "block";
+        if (data.routes && data.routes[0]) {
+          var distM = data.routes[0].distanceMeters;
+          var distKm = distM / 1000;
+          var calc = distKm * PRECO_KM;
+          freteValor = Math.max(calc, FRETE_MINIMO);
+          document.getElementById("frete-valor").textContent = "R$ " + fmt(freteValor);
+          document.getElementById("frete-detalhe").textContent =
+            distKm.toFixed(1) + " km × R$ " + fmt(PRECO_KM) + "/km" +
+            (calc < FRETE_MINIMO ? " (mínimo R$ " + fmt(FRETE_MINIMO) + ")" : "");
+        } else {
+          mostrarErroFrete();
+        }
+        atualizar();
+      })
+      .catch(function(){ mostrarErroFrete(); });
+    });
   });
+}
+
+function mostrarErroFrete() {
+  document.getElementById("frete-loading").style.display = "none";
+  document.getElementById("frete-resultado").style.display = "block";
+  freteValor = 0;
+  document.getElementById("frete-valor").textContent = "A combinar";
+  document.getElementById("frete-detalhe").textContent = "Endereço não encontrado — frete calculado no contato";
+  atualizar();
 }
 
 function fmt(v){ return Number(v).toFixed(2).replace(".",","); }
