@@ -321,9 +321,50 @@ var pct = 0;
 var freteValor = 0;
 var freteTimer = null;
 
-var ORIGEM = "Quadra 7 Casa 79 Setor Oeste, Gama, DF, Brasil";
 var PRECO_KM = 3.00;
 var FRETE_MINIMO = 40.00;
+
+// Coordenadas de origem: Gama, DF
+var ORIGEM_LAT = -15.9931;
+var ORIGEM_LNG = -48.0600;
+
+// Distâncias aproximadas por região do DF (em km, por estrada)
+var REGIOES_DF = [
+  {nomes: ["gama"], km: 5},
+  {nomes: ["santa maria"], km: 10},
+  {nomes: ["samambaia"], km: 20},
+  {nomes: ["recanto das emas", "recanto"], km: 18},
+  {nomes: ["riacho fundo"], km: 22},
+  {nomes: ["taguatinga"], km: 25},
+  {nomes: ["ceilandia", "ceilândia"], km: 30},
+  {nomes: ["estrutural", "scia"], km: 28},
+  {nomes: ["park way", "parkway"], km: 20},
+  {nomes: ["nucleo bandeirante", "núcleo bandeirante"], km: 22},
+  {nomes: ["candangolandia", "candangolândia"], km: 18},
+  {nomes: ["guara", "guará"], km: 30},
+  {nomes: ["aguas claras", "águas claras"], km: 27},
+  {nomes: ["vicente pires"], km: 28},
+  {nomes: ["sobradinho"], km: 50},
+  {nomes: ["planaltina"], km: 65},
+  {nomes: ["brazlandia", "brazlândia"], km: 55},
+  {nomes: ["lago sul", "lago norte"], km: 38},
+  {nomes: ["asa sul", "asa norte", "plano piloto", "brasilia", "brasília"], km: 35},
+  {nomes: ["cruzeiro", "sudoeste", "octogonal"], km: 33},
+  {nomes: ["sao sebastiao", "são sebastião"], km: 40},
+  {nomes: ["paranoa", "paranoá"], km: 45},
+  {nomes: ["itapoa", "itapoã"], km: 48},
+  {nomes: ["jardim botanico", "jardim botânico"], km: 42},
+  {nomes: ["varjao", "varjão"], km: 47},
+  {nomes: ["fercal"], km: 70},
+  {nomes: ["goiania", "goiânia"], km: 200},
+  {nomes: ["anapolis", "anápolis"], km: 150},
+  {nomes: ["luziania", "luziânia"], km: 35},
+  {nomes: ["valparaiso"], km: 28},
+  {nomes: ["novo gama"], km: 22},
+  {nomes: ["cidade ocidental"], km: 30},
+  {nomes: ["aguas lindas", "águas lindas"], km: 45},
+  {nomes: ["santo antonio do descoberto"], km: 50}
+];
 
 function debounceCalcFrete() {
   clearTimeout(freteTimer);
@@ -331,50 +372,53 @@ function debounceCalcFrete() {
 }
 
 function calcFrete() {
-  var local = document.getElementById("local").value.trim();
-  var cidade = document.getElementById("cidade").value.trim();
+  var local = document.getElementById("local").value.trim().toLowerCase();
+  var cidade = document.getElementById("cidade").value.trim().toLowerCase();
+  var texto = local + " " + cidade;
+
   if (local.length < 8) {
     document.getElementById("frete-box").classList.remove("visivel");
     freteValor = 0;
     return;
   }
 
-  var destino = local + (cidade ? ", " + cidade : "") + ", DF, Brasil";
   document.getElementById("frete-box").classList.add("visivel");
   document.getElementById("frete-loading").style.display = "block";
   document.getElementById("frete-resultado").style.display = "none";
 
-  fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": "AIzaSyD-L9dtWr_GGvIHl_MjC2xy2xIabFGT69E",
-      "X-Goog-FieldMask": "routes.distanceMeters"
-    },
-    body: JSON.stringify({
-      origin: {address: ORIGEM},
-      destination: {address: destino},
-      travelMode: "DRIVE"
-    })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data) {
+  setTimeout(function() {
     document.getElementById("frete-loading").style.display = "none";
     document.getElementById("frete-resultado").style.display = "block";
-    if (data.routes && data.routes.length > 0 && data.routes[0].distanceMeters) {
-      var distKm = data.routes[0].distanceMeters / 1000;
+
+    var distKm = null;
+    var regiaoEncontrada = "";
+
+    for (var i = 0; i < REGIOES_DF.length; i++) {
+      var r = REGIOES_DF[i];
+      for (var j = 0; j < r.nomes.length; j++) {
+        if (texto.indexOf(r.nomes[j]) !== -1) {
+          distKm = r.km;
+          regiaoEncontrada = r.nomes[0];
+          break;
+        }
+      }
+      if (distKm !== null) break;
+    }
+
+    if (distKm !== null) {
       var calc = distKm * PRECO_KM;
       freteValor = Math.max(calc, FRETE_MINIMO);
       document.getElementById("frete-valor").textContent = "R$ " + fmt(freteValor);
       document.getElementById("frete-detalhe").textContent =
-        distKm.toFixed(1) + " km × R$ " + fmt(PRECO_KM) + "/km" +
+        "~" + distKm + " km de distância" +
         (calc < FRETE_MINIMO ? " (mínimo R$ " + fmt(FRETE_MINIMO) + ")" : "");
     } else {
-      mostrarErroFrete();
+      freteValor = 0;
+      document.getElementById("frete-valor").textContent = "A combinar";
+      document.getElementById("frete-detalhe").textContent = "Região não identificada — frete confirmado no contato";
     }
     atualizar();
-  })
-  .catch(function(err){ mostrarErroFrete(); });
+  }, 600);
 }
 
 function mostrarErroFrete() {
@@ -382,7 +426,7 @@ function mostrarErroFrete() {
   document.getElementById("frete-resultado").style.display = "block";
   freteValor = 0;
   document.getElementById("frete-valor").textContent = "A combinar";
-  document.getElementById("frete-detalhe").textContent = "Endereço não encontrado — frete calculado no contato";
+  document.getElementById("frete-detalhe").textContent = "Região não identificada — frete confirmado no contato";
   atualizar();
 }
 
